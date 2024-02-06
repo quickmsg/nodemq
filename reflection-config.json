@@ -1,0 +1,30 @@
+[
+  {
+    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$SystemItem",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$MqttItem",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$LogItem",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "java.util.logging.Level",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true,
+    "fields": [
+      { "name": "name", "allowWrite": true }
+    ]
+  }
+]
