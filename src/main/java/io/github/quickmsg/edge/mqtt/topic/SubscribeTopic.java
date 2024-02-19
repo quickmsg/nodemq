@@ -1,4 +1,4 @@
-package io.github.quickmsg.edge.mqtt.core;
+package io.github.quickmsg.edge.mqtt.topic;
 
 /**
  * @author luxurong

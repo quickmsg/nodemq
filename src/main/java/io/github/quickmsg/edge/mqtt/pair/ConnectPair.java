@@ -1,4 +1,4 @@
-package io.github.quickmsg.edge.mqtt.core.pair;
+package io.github.quickmsg.edge.mqtt.pair;
 
 
 import io.netty.handler.codec.mqtt.MqttProperties;

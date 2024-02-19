@@ -1,12 +1,11 @@
 package io.github.quickmsg.edge.mqtt;
 
 import reactor.core.publisher.Flux;
-import reactor.util.context.ContextView;
 
 /**
  * @author luxurong
  */
-public interface ChannelAcceptor {
+public interface EndpointAcceptor {
 
 
     String id();

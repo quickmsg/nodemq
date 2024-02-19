@@ -26,5 +26,7 @@ public interface Endpoint<M> {
 
     long connectTime();
 
+    String getClientId();
+
 
 }

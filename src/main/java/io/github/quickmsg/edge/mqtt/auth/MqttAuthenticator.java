@@ -1,4 +1,4 @@
-package io.github.quickmsg.edge.mqtt.core;
+package io.github.quickmsg.edge.mqtt.auth;
 
 import io.github.quickmsg.edge.mqtt.Authenticator;
 

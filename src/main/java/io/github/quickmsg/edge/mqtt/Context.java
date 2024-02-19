@@ -2,7 +2,6 @@ package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
@@ -18,7 +17,7 @@ public interface Context {
     TopicRegistry getTopicRegistry();
 
 
-    ChannelRegistry getChannelRegistry();
+    EndpointRegistry getChannelRegistry();
 
     Authenticator getAuthenticator();
 

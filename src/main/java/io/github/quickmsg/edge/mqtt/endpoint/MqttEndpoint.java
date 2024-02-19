@@ -1,10 +1,11 @@
-package io.github.quickmsg.edge.mqtt.core;
+package io.github.quickmsg.edge.mqtt.endpoint;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
-import io.github.quickmsg.edge.mqtt.core.pair.ConnectPair;
-import io.github.quickmsg.edge.mqtt.core.pair.WillPair;
+import io.github.quickmsg.edge.mqtt.pair.ConnectPair;
+import io.github.quickmsg.edge.mqtt.pair.WillPair;
 import io.github.quickmsg.edge.mqtt.packet.*;
+import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.github.quickmsg.edge.mqtt.util.MessageUtils;
 import io.netty.handler.codec.mqtt.*;
 import reactor.core.publisher.Flux;
@@ -87,6 +88,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
     @Override
     public long connectTime() {
         return connectTime;
+    }
+
+    @Override
+    public String getClientId() {
+        return this.clientId;
     }
 
     private Packet transfer(MqttMessage mqttMessage) {

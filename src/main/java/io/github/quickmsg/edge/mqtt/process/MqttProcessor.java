@@ -2,7 +2,7 @@ package io.github.quickmsg.edge.mqtt.process;
 
 import io.github.quickmsg.edge.mqtt.MqttContext;
 import io.github.quickmsg.edge.mqtt.Processor;
-import io.github.quickmsg.edge.mqtt.core.MqttEndpoint;
+import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import reactor.core.publisher.Mono;

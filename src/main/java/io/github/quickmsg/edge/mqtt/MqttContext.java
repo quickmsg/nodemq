@@ -1,12 +1,13 @@
 package io.github.quickmsg.edge.mqtt;
 
-import io.github.quickmsg.edge.mqtt.core.MqttAuthenticator;
-import io.github.quickmsg.edge.mqtt.core.MqttChannelRegistry;
-import io.github.quickmsg.edge.mqtt.core.MqttTopicRegistry;
+import io.github.quickmsg.edge.mqtt.auth.MqttAuthenticator;
+
 import io.github.quickmsg.edge.mqtt.config.MqttConfig;
+import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpointRegistry;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.process.MqttProcessor;
+import io.github.quickmsg.edge.mqtt.topic.MqttTopicRegistry;
 import io.github.quickmsg.edge.mqtt.util.JsonReader;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -22,7 +23,7 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private final Map<String, MqttAcceptor> mqttContext = new HashMap<>();
 
-    private final ChannelRegistry channelRegistry;
+    private final EndpointRegistry endpointRegistry;
 
     private final TopicRegistry topicRegistry;
 
@@ -34,11 +35,11 @@ public class MqttContext implements Context, Consumer<Packet> {
 
 
     public MqttContext() {
-        this(new MqttChannelRegistry(), new MqttTopicRegistry(),new MqttAuthenticator());
+        this(new MqttEndpointRegistry(), new MqttTopicRegistry(),new MqttAuthenticator());
     }
 
-    public MqttContext(ChannelRegistry channelRegistry, TopicRegistry topicRegistry, Authenticator authenticator ) {
-        this.channelRegistry = channelRegistry;
+    public MqttContext(EndpointRegistry endpointRegistry, TopicRegistry topicRegistry, Authenticator authenticator ) {
+        this.endpointRegistry = endpointRegistry;
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
         this.authenticator = authenticator;
@@ -86,8 +87,8 @@ public class MqttContext implements Context, Consumer<Packet> {
     }
 
     @Override
-    public ChannelRegistry getChannelRegistry() {
-        return this.channelRegistry;
+    public EndpointRegistry getChannelRegistry() {
+        return this.endpointRegistry;
     }
 
     @Override

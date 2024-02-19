@@ -1,7 +1,7 @@
 package io.github.quickmsg.edge.mqtt;
 
 import com.hazelcast.internal.util.UuidUtil;
-import io.github.quickmsg.edge.mqtt.core.MqttEndpoint;
+import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.config.MqttConfig;
 import io.github.quickmsg.edge.mqtt.config.config.SslConfig;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -22,7 +22,7 @@ import java.io.File;
  * @author luxurong
  */
 
-public class MqttAcceptor implements ChannelAcceptor {
+public class MqttAcceptor implements EndpointAcceptor {
 
     private final String id;
 

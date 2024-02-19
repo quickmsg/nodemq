@@ -18,24 +18,23 @@ public class AsyncLogger implements Logger {
 
     public AsyncLogger(MqttConfig.LogItem logItem) {
         try {
-            // 获取根日志记录器
-            this.rootLogger = java.util.logging.Logger.getLogger(this.getClass().getName());
-
-            // 移除默认的处理器
+            this.rootLogger = java.util.logging.Logger.getLogger("");
             Handler[] handlers = this.rootLogger.getHandlers();
             for (Handler handler : handlers) {
                 this.rootLogger.removeHandler(handler);
             }
-            StreamHandler handler;
             if(logItem.persisted()){
-                // 添加日期切割的文件处理器
-                handler = new FileHandler(
+                StreamHandler  handler = new FileHandler(
                         "logs/NodeMQ-%g.log", 100*1024 * 1024, 20, true);
-            }else{
-                handler = new ConsoleHandler();
+                handler.setFormatter(new CustomFormatter());
+                this.rootLogger.addHandler(handler);
             }
-            handler.setFormatter(new SimpleFormatter());
-            this.rootLogger.addHandler(handler);
+            else{
+                ConsoleHandler consoleHandler = new ConsoleHandler();
+                consoleHandler.setFormatter(new CustomFormatter());
+                this.rootLogger.addHandler(consoleHandler);
+            }
+
         }catch (Exception e){
             // ignore
         }
