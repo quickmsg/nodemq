@@ -29,4 +29,14 @@ public interface Endpoint<M> {
     String getClientId();
 
 
+    boolean isClosed();
+
+    void readIdle(long keeps,Runnable runnable);
+
+    void writeIdle(long keeps,Runnable runnable);
+
+    void readWriteIdle(long keeps,Runnable runnable);
+
+    void onClose(Runnable runnable);
+
 }

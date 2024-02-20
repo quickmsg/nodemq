@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,11 +41,36 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private final long connectTime;
 
+    private volatile  boolean closed;
+
+    private volatile  boolean keepSession;
+
+
+    private final List<SubscribeTopic> subscribeTopics;
+
+
     public MqttEndpoint(Connection connection, String clientId) {
         this.connection = connection;
         this.clientId = clientId;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
         this.connectTime =System.currentTimeMillis();
+        this.subscribeTopics= new ArrayList<>();
+    }
+
+    public void setClosed(boolean closed) {
+        this.closed = closed;
+    }
+
+    public boolean isKeepSession() {
+        return keepSession;
+    }
+
+    public void setKeepSession(boolean keepSession) {
+        this.keepSession = keepSession;
+    }
+
+    public List<SubscribeTopic> getSubscribeTopics() {
+        return subscribeTopics;
     }
 
     public void setConnected(boolean connected){
@@ -93,6 +119,32 @@ public class MqttEndpoint implements Endpoint<Packet> {
     @Override
     public String getClientId() {
         return this.clientId;
+    }
+
+    @Override
+    public boolean isClosed() {
+        return this.closed;
+    }
+
+    @Override
+    public void readIdle(long keeps, Runnable runnable) {
+        connection.onReadIdle(keeps,runnable);
+    }
+
+    @Override
+    public void writeIdle(long keeps, Runnable runnable) {
+        connection.onWriteIdle(keeps,runnable);
+    }
+
+    @Override
+    public void readWriteIdle(long keeps, Runnable runnable) {
+        connection.onReadIdle(keeps,runnable);
+        connection.onWriteIdle(keeps,runnable);
+    }
+
+    @Override
+    public void onClose(Runnable close) {
+        connection.onDispose(close::run);
     }
 
     private Packet transfer(MqttMessage mqttMessage) {

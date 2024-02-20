@@ -36,7 +36,6 @@ public class JsonReader {
         try {
             return mapper.readValue(new File(path), tClass);
         } catch (IOException e) {
-            e.printStackTrace();
             //ignore
             return null;
         }

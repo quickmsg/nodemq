@@ -3,7 +3,6 @@ package io.github.quickmsg.edge.mqtt;
 import com.hazelcast.internal.util.UuidUtil;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.config.MqttConfig;
-import io.github.quickmsg.edge.mqtt.config.config.SslConfig;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.mqtt.MqttDecoder;
@@ -86,13 +85,13 @@ public class MqttAcceptor implements EndpointAcceptor {
         }
     }
 
-    public TcpServer ssl(SslConfig sslConfig) {
+    public TcpServer ssl(MqttConfig.SslConfig sslConfig) {
         TcpServer server = TcpServer.create();
         server = server.secure(sslContextSpec -> this.secure(sslContextSpec, sslConfig));
         return server;
     }
 
-    private void secure(SslProvider.SslContextSpec sslContextSpec, SslConfig sslConfig) {
+    private void secure(SslProvider.SslContextSpec sslContextSpec, MqttConfig.SslConfig sslConfig) {
         try {
             SslContextBuilder sslContextBuilder;
             if (sslConfig != null) {

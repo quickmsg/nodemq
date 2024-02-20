@@ -33,6 +33,8 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private  AsyncLogger asyncLogger;
 
+    private MqttConfig mqttConfig;
+
 
     public MqttContext() {
         this(new MqttEndpointRegistry(), new MqttTopicRegistry(),new MqttAuthenticator());
@@ -48,14 +50,11 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     @Override
     public Flux<Packet> start() {
-        MqttConfig mqttConfig = readConfig();
-        if(mqttConfig==null){
-            mqttConfig = MqttConfig.defaultConfig();
+        this.mqttConfig = readConfig();
+        if( this.mqttConfig==null){
+            this.mqttConfig = MqttConfig.defaultConfig();
         }
-        else{
-            this.checkConfig(mqttConfig);
-        }
-        this.asyncLogger = new AsyncLogger(mqttConfig.log());
+        this.asyncLogger = new AsyncLogger( this.mqttConfig.log());
         return Flux.fromIterable(mqttConfig.mqtt())
                 .flatMap(mqttItem -> {
                     final MqttAcceptor mqttAcceptor = new MqttAcceptor();
@@ -70,10 +69,6 @@ public class MqttContext implements Context, Consumer<Packet> {
                 .onErrorContinue((throwable, o) -> {
                     this.asyncLogger.printError("mqtt accept error",throwable);
                 });
-    }
-
-    private void checkConfig(MqttConfig mqttConfig) {
-
     }
 
     @Override
@@ -94,6 +89,10 @@ public class MqttContext implements Context, Consumer<Packet> {
     @Override
     public Authenticator getAuthenticator() {
         return this.authenticator;
+    }
+    @Override
+    public MqttConfig getMqttConfig() {
+        return mqttConfig;
     }
 
     @Override
