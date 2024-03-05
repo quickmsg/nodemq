@@ -1,5 +1,7 @@
 package io.github.quickmsg.edge.mqtt;
 
+import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
+import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -9,8 +11,18 @@ import reactor.core.publisher.Mono;
  */
 public interface Endpoint<M> {
 
-    Mono<Void> write(M message);
+    void writeMessage(int messageId,String topic,int qos,byte[] payload,boolean retain);
 
+    void writeConnectAck(MqttConnectReturnCode connectReturnCode);
+
+    void writeMessageAck(int messageId);
+
+    void writeSubAck(int messageId);
+
+    void writeUnsubAck(int messageId);
+
+    void writeDisconnect();
+    void writePong();
 
     Flux<M> receive();
 
@@ -38,5 +50,8 @@ public interface Endpoint<M> {
     void readWriteIdle(long keeps,Runnable runnable);
 
     void onClose(Runnable runnable);
+
+
+    void close();
 
 }

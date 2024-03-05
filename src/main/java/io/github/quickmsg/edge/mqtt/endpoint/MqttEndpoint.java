@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 
 public class MqttEndpoint implements Endpoint<Packet> {
 
-
     private final Connection connection;
     private final String clientId;
 
@@ -45,16 +44,36 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private volatile  boolean keepSession;
 
+    /**
+     *  0  client close
+     *  1  server close
+     *  2  kicked
+     *  3  beats-kill
+     *  4  disconnect
+     */
+    private volatile int closeCode = 0 ;
 
     private final List<SubscribeTopic> subscribeTopics;
 
+    public String getClientIp() {
+        return clientIp;
+    }
 
-    public MqttEndpoint(Connection connection, String clientId) {
+    public MqttEndpoint(int connectTimeout, Connection connection, String clientId) {
         this.connection = connection;
         this.clientId = clientId;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
         this.connectTime =System.currentTimeMillis();
         this.subscribeTopics= new ArrayList<>();
+        this.readIdle(connectTimeout, this::close);
+    }
+
+    public int getCloseCode() {
+        return closeCode;
+    }
+
+    public void setCloseCode(int closeCode) {
+        this.closeCode = closeCode;
     }
 
     public void setClosed(boolean closed) {
@@ -77,10 +96,6 @@ public class MqttEndpoint implements Endpoint<Packet> {
         this.connected = connected;
     }
 
-    @Override
-    public Mono<Void> write(Packet message) {
-        return null;
-    }
 
     @Override
     public Flux<Packet> receive() {
@@ -140,6 +155,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
     public void readWriteIdle(long keeps, Runnable runnable) {
         connection.onReadIdle(keeps,runnable);
         connection.onWriteIdle(keeps,runnable);
+    }
+
+    @Override
+    public void close() {
+         connection.dispose();
     }
 
     @Override
@@ -272,6 +292,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
 
+    @Override
+    public void writeMessage(int messageId, String topic, int qos, byte[] payload, boolean retain) {
+
+    }
+
     public void writeConnectAck(MqttConnectReturnCode connectReturnCode) {
         MqttConnAckVariableHeader mqttConnAckVariableHeader = new MqttConnAckVariableHeader(connectReturnCode, false);
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
@@ -280,5 +305,31 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 .sendObject(Mono.just(new MqttConnAckMessage(mqttFixedHeader, mqttConnAckVariableHeader)))
                 .then()
                 .subscribe();
+    }
+
+    @Override
+    public void writeMessageAck(int messageId) {
+
+
+    }
+
+    @Override
+    public void writeSubAck(int messageId) {
+
+    }
+
+    @Override
+    public void writeUnsubAck(int messageId) {
+
+    }
+
+    @Override
+    public void writeDisconnect() {
+
+    }
+
+    @Override
+    public void writePong() {
+
     }
 }

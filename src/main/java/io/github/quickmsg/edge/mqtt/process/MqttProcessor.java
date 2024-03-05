@@ -22,7 +22,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processConnect(ConnectPacket packet) {
         return Mono.fromRunnable(() -> {
-            final MqttEndpoint endpoint= packet.endpoint();
+            final MqttEndpoint endpoint = packet.endpoint();
             boolean auth = context.getAuthenticator().auth(packet.clientId(),
                     packet.connectUserDetail().username(),
                     packet.connectUserDetail().password());
@@ -34,9 +34,12 @@ public record MqttProcessor(MqttContext context) implements Processor {
                 }
             } else {
                 endpoint.setConnected(true);
-                endpoint.onClose(()->this.clearEndpoint(endpoint));
+                endpoint.onClose(() -> this.clearEndpoint(endpoint));
+                endpoint.readIdle(packet.keepalive(), () -> {
+                    endpoint.setCloseCode(3);
+                    endpoint.close();
+                });
                 if (endpoint.isMqtt5()) {
-
                     endpoint.writeConnectAck(MqttConnectReturnCode.CONNECTION_ACCEPTED);
                 } else {
                     endpoint.writeConnectAck(MqttConnectReturnCode.CONNECTION_ACCEPTED);
@@ -46,24 +49,26 @@ public record MqttProcessor(MqttContext context) implements Processor {
     }
 
     private void clearEndpoint(MqttEndpoint endpoint) {
+        context.getLogger().printInfo(String.format(" %s %s  reason: %s ", endpoint.getClientIp(), endpoint.getClientId(), endpoint.getCloseCode()));
         context.getChannelRegistry().remove(endpoint);
         final List<SubscribeTopic> subscribeTopics = endpoint.getSubscribeTopics();
-        for(SubscribeTopic subscribeTopic:subscribeTopics){
-            context.getTopicRegistry().removeTopicSubscribe(subscribeTopic.topic(),subscribeTopic);
+        for (SubscribeTopic subscribeTopic : subscribeTopics) {
+            context.getTopicRegistry().removeTopicSubscribe(subscribeTopic.topic(), subscribeTopic);
         }
     }
 
     @Override
     public Mono<Void> processPublish(PublishPacket packet) {
-        final MqttEndpoint endpoint = packet.endpoint();
-        final TopicRegistry topicRegistry = context.getTopicRegistry();
-        final EndpointRegistry channelRegistry = context.getChannelRegistry();
-        final Set<SubscribeTopic> subscribeTopics = topicRegistry.searchTopicSubscribe(packet.topic());
-        if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
-
-        }
         return Mono.fromRunnable(() -> {
-
+            final var endpoint = packet.endpoint();
+            final var topicRegistry = context.getTopicRegistry();
+            final var channelRegistry = context.getChannelRegistry();
+            final var subscribeTopics = topicRegistry.searchTopicSubscribe(packet.topic());
+            if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
+                for (var subscribeTopic : subscribeTopics) {
+//                    endpoint.write(packet);
+                }
+            }
         });
 
     }

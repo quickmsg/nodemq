@@ -10,6 +10,7 @@ import io.github.quickmsg.edge.mqtt.process.MqttProcessor;
 import io.github.quickmsg.edge.mqtt.topic.MqttTopicRegistry;
 import io.github.quickmsg.edge.mqtt.util.JsonReader;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
@@ -35,12 +36,15 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private MqttConfig mqttConfig;
 
+    private final Scheduler scheduler;
+
 
     public MqttContext() {
         this(new MqttEndpointRegistry(), new MqttTopicRegistry(),new MqttAuthenticator());
     }
 
     public MqttContext(EndpointRegistry endpointRegistry, TopicRegistry topicRegistry, Authenticator authenticator ) {
+        this.scheduler = Schedulers.newParallel("event",Runtime.getRuntime().availableProcessors());
         this.endpointRegistry = endpointRegistry;
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
@@ -108,18 +112,29 @@ public class MqttContext implements Context, Consumer<Packet> {
     public void accept(Packet packet) {
         switch (packet) {
             case PublishPacket publishPacket -> mqttProcessor.processPublish(publishPacket)
-                    .subscribe();
-            case SubscribePacket subscribePacket -> mqttProcessor.processSubscribe(subscribePacket).subscribe();
-            case ConnectPacket connectPacket-> mqttProcessor.processConnect(connectPacket).subscribe();
-            case DisconnectPacket disconnectPacket->mqttProcessor.processDisconnect(disconnectPacket).subscribe();
-            case PublishAckPacket publishAckPacket->mqttProcessor.processPublishAck(publishAckPacket).subscribe();
-            case AuthPacket authPacket->mqttProcessor.processAuth(authPacket).subscribe();
-            case UnsubscribePacket unsubscribePacket->mqttProcessor.processUnSubscribe(unsubscribePacket).subscribe();
-            case PublishRelPacket publishRelPacket ->mqttProcessor.processPublishRel(publishRelPacket).subscribe();
-            case PublishRecPacket publishRecPacket->mqttProcessor.processPublishRec(publishRecPacket).subscribe();
-            case PublishCompPacket publishCompPacket->mqttProcessor.processPublishComp(publishCompPacket).subscribe();
-            case PingPacket pingPacket->mqttProcessor.processPing(pingPacket).subscribe();
-            case ClosePacket closePacket->mqttProcessor.processClose(closePacket).subscribe();
+                    .subscribeOn(scheduler).subscribe();
+            case SubscribePacket subscribePacket -> mqttProcessor.processSubscribe(subscribePacket)
+                    .subscribeOn(scheduler).subscribe();
+            case ConnectPacket connectPacket-> mqttProcessor.processConnect(connectPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case DisconnectPacket disconnectPacket->mqttProcessor.processDisconnect(disconnectPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case PublishAckPacket publishAckPacket->mqttProcessor.processPublishAck(publishAckPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case AuthPacket authPacket->mqttProcessor.processAuth(authPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case UnsubscribePacket unsubscribePacket->mqttProcessor.processUnSubscribe(unsubscribePacket)
+                    .subscribeOn(scheduler).subscribe();
+            case PublishRelPacket publishRelPacket ->mqttProcessor.processPublishRel(publishRelPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case PublishRecPacket publishRecPacket->mqttProcessor.processPublishRec(publishRecPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case PublishCompPacket publishCompPacket->mqttProcessor.processPublishComp(publishCompPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case PingPacket pingPacket->mqttProcessor.processPing(pingPacket)
+                    .subscribeOn(scheduler).subscribe();
+            case ClosePacket closePacket->mqttProcessor.processClose(closePacket)
+                    .subscribeOn(scheduler).subscribe();
             default -> {
             }
         }

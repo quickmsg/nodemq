@@ -8,19 +8,18 @@ import java.util.List;
 public record MqttConfig(List<MqttItem> mqtt,SystemItem system,LogItem log) {
     public static MqttConfig defaultConfig() {
         return new MqttConfig(
-                List.of(new MqttItem("0.0.0.0",1883,65535,3,1000,1000,false,null,false)),
-                        new SystemItem(),new LogItem("",false));
+                List.of(new MqttItem("0.0.0.0",1883,65535,3,false,null,false)),
+                        new SystemItem(2000L,1000,1000),new LogItem("",false));
     }
 
 
-    public record SystemItem(){}
+    public record SystemItem( long connectTimeout,
+                              int maxSessionMessageSize,
+                              int maxRetainMessageSize){}
 
     public record MqttItem(String host,
                            int port,
                            int maxMessageSize,
-                           int maxSessionMessageSize,
-                           int maxRetainMessageSize,
-
                            int connectTimeout,
                            boolean wiretap,
                            SslConfig sslConfig,
