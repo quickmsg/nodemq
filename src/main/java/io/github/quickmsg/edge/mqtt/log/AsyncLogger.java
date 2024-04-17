@@ -11,53 +11,57 @@ import java.util.logging.*;
  */
 public class AsyncLogger implements Logger {
 
-    private  final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
-    private  java.util.logging.Logger rootLogger ;
+    private java.util.logging.Logger rootLogger;
 
 
     public AsyncLogger(MqttConfig.LogItem logItem) {
         try {
             this.rootLogger = java.util.logging.Logger.getLogger("");
-            Handler[] handlers = this.rootLogger.getHandlers();
-            for (Handler handler : handlers) {
-                this.rootLogger.removeHandler(handler);
+            switch (logItem.level()) {
+                case "info", "INFO" -> this.rootLogger.setLevel(Level.INFO);
+                case "debug", "DEBUG" -> this.rootLogger.setLevel(Level.ALL);
+                default -> this.rootLogger.setLevel(Level.SEVERE);
             }
-            if(logItem.persisted()){
-                StreamHandler  handler = new FileHandler(
-                        "logs/NodeMQ-%g.log", 100*1024 * 1024, 20, true);
+              Handler[] handlers = this.rootLogger.getHandlers();
+              for (Handler handler : handlers) {
+                 this.rootLogger.removeHandler(handler);
+            }
+             if (logItem.persisted()) {
+                StreamHandler handler = new FileHandler(
+                        "logs/NodeMQ-%g.log", 100 * 1024 * 1024, 20, true);
                 handler.setFormatter(new CustomFormatter());
                 this.rootLogger.addHandler(handler);
-            }
-            else{
-                ConsoleHandler consoleHandler = new ConsoleHandler();
+            } else {
+                 ConsoleHandler consoleHandler = new ConsoleHandler();
                 consoleHandler.setFormatter(new CustomFormatter());
-                this.rootLogger.addHandler(consoleHandler);
+                 this.rootLogger.addHandler(consoleHandler);
             }
 
-        }catch (Exception e){
+        } catch (Exception e) {
             // ignore
-        }
+         }
 
-    }
+     }
 
     @Override
     public void printInfo(String message) {
-        executorService.execute(()->{
-            this.rootLogger.log(Level.INFO,message);
+        executorService.execute(() -> {
+            this.rootLogger.log(Level.INFO, message);
         });
     }
 
     @Override
     public void printError(String message, Throwable throwable) {
-        executorService.execute(()->{
-            this.rootLogger.log(Level.SEVERE,message);
+        executorService.execute(() -> {
+            this.rootLogger.log(Level.SEVERE, message, throwable);
         });
     }
 
-    public void printWarn(String message){
-        executorService.execute(()->{
-            this.rootLogger.log(Level.SEVERE,message);
+    public void printWarn(String message) {
+        executorService.execute(() -> {
+            this.rootLogger.log(Level.WARNING, message);
         });
     }
 

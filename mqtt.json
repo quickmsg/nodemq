@@ -12,7 +12,7 @@
   "system": {
   },
   "log": {
-    "level": "",
+    "level": "info",
     "persisted": false
   }
 }

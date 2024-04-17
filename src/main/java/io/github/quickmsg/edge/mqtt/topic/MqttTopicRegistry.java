@@ -24,8 +24,8 @@ public class MqttTopicRegistry implements TopicRegistry {
     }
 
     @Override
-    public void addTopicSubscribe(String topicFilter, SubscribeTopic subscribeTopic) {
-        subscribeTree.addObjectTopic(topicFilter,subscribeTopic);
+    public boolean addTopicSubscribe(String topicFilter, SubscribeTopic subscribeTopic) {
+        return subscribeTree.addObjectTopic(topicFilter,subscribeTopic);
     }
 
     @Override

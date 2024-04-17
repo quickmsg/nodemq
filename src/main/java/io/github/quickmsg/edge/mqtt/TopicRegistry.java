@@ -13,7 +13,7 @@ public interface TopicRegistry {
     Set<SubscribeTopic> searchTopicSubscribe(String topic);
 
 
-    void addTopicSubscribe(String topicFilter, SubscribeTopic subscribeTopic);
+    boolean addTopicSubscribe(String topicFilter, SubscribeTopic subscribeTopic);
 
 
     void removeTopicSubscribe(String topicFilter, SubscribeTopic subscribeTopic);

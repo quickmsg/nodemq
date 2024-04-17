@@ -2,6 +2,7 @@ package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.config.MqttConfig;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
+import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
 import reactor.core.publisher.Flux;
 
 import java.util.Map;
@@ -24,6 +25,8 @@ public interface Context {
     Authenticator getAuthenticator();
 
     AsyncLogger getLogger();
+
+    RetainStore<PublishPacket> getRetainStore();
 
 
 }

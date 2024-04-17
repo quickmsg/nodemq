@@ -7,5 +7,5 @@ import java.util.List;
 /**
  * @author luxurong
  */
-public record AckPair(String reason, List<MqttProperties.StringPair> userProperty) {
+public record AckPair(byte reason, List<MqttProperties.StringProperty> userProperty) {
 }

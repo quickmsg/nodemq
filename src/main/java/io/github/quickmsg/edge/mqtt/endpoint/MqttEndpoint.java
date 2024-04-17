@@ -2,11 +2,11 @@ package io.github.quickmsg.edge.mqtt.endpoint;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
-import io.github.quickmsg.edge.mqtt.pair.ConnectPair;
-import io.github.quickmsg.edge.mqtt.pair.WillPair;
+import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.github.quickmsg.edge.mqtt.util.MessageUtils;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.mqtt.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.ConsoleHandler;
 import java.util.stream.Collectors;
 
 /**
@@ -25,7 +27,7 @@ import java.util.stream.Collectors;
 public class MqttEndpoint implements Endpoint<Packet> {
 
     private final Connection connection;
-    private final String clientId;
+    private String clientId;
 
     private final String clientIp;
 
@@ -40,18 +42,38 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private final long connectTime;
 
-    private volatile  boolean closed;
+    private volatile boolean closed;
 
-    private volatile  boolean keepSession;
+    private volatile boolean keepSession;
+
+
+    private transient AtomicInteger atomicInteger;
+
+    public int generateMessageId() {
+        int index = atomicInteger.incrementAndGet();
+        if (index > 65535) {
+            if (atomicInteger.compareAndSet(index, 1)) {
+                return 1;
+            } else {
+                return atomicInteger.incrementAndGet();
+            }
+        }
+        return index;
+    }
+
 
     /**
-     *  0  client close
-     *  1  server close
-     *  2  kicked
-     *  3  beats-kill
-     *  4  disconnect
+     * 0  client close
+     * 1  server close
+     * 2  kicked
+     * 3  beats-kill
+     * 4  disconnect
      */
-    private volatile int closeCode = 0 ;
+    private volatile int closeCode = 0;
+
+
+    private volatile int receiveMaxMessageSize;
+
 
     private final List<SubscribeTopic> subscribeTopics;
 
@@ -59,12 +81,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return clientIp;
     }
 
-    public MqttEndpoint(int connectTimeout, Connection connection, String clientId) {
+    public MqttEndpoint(int connectTimeout, Connection connection) {
         this.connection = connection;
-        this.clientId = clientId;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
-        this.connectTime =System.currentTimeMillis();
-        this.subscribeTopics= new ArrayList<>();
+        this.connectTime = System.currentTimeMillis();
+        this.subscribeTopics = new ArrayList<>();
         this.readIdle(connectTimeout, this::close);
     }
 
@@ -80,6 +101,8 @@ public class MqttEndpoint implements Endpoint<Packet> {
         this.closed = closed;
     }
 
+
+
     public boolean isKeepSession() {
         return keepSession;
     }
@@ -92,7 +115,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return subscribeTopics;
     }
 
-    public void setConnected(boolean connected){
+    public void setConnected(boolean connected) {
         this.connected = connected;
     }
 
@@ -101,7 +124,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
     public Flux<Packet> receive() {
         return connection
                 .inbound()
-                .receive()
+                .receiveObject()
                 .cast(MqttMessage.class)
                 .map(this::transfer);
     }
@@ -138,28 +161,28 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public boolean isClosed() {
-        return this.closed;
+        return this.closed || !connection.channel().isActive();
     }
 
     @Override
     public void readIdle(long keeps, Runnable runnable) {
-        connection.onReadIdle(keeps,runnable);
+        connection.onReadIdle(keeps, runnable);
     }
 
     @Override
     public void writeIdle(long keeps, Runnable runnable) {
-        connection.onWriteIdle(keeps,runnable);
+        connection.onWriteIdle(keeps, runnable);
     }
 
     @Override
     public void readWriteIdle(long keeps, Runnable runnable) {
-        connection.onReadIdle(keeps,runnable);
-        connection.onWriteIdle(keeps,runnable);
+        connection.onReadIdle(keeps, runnable);
+        connection.onWriteIdle(keeps, runnable);
     }
 
     @Override
     public void close() {
-         connection.dispose();
+        connection.dispose();
     }
 
     @Override
@@ -168,9 +191,10 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     private Packet transfer(MqttMessage mqttMessage) {
+        System.out.println("test");
         return switch (mqttMessage.fixedHeader().messageType()) {
             case CONNECT -> {
-                MqttConnectMessage connectMessage = (MqttConnectMessage) mqttMessage;
+                var connectMessage = (MqttConnectMessage) mqttMessage;
                 ConnectPacket.ConnectUserDetail userDetail = null;
                 if (connectMessage.variableHeader().hasUserName() || connectMessage.variableHeader().hasPassword()) {
                     userDetail = new ConnectPacket.ConnectUserDetail(connectMessage.payload().userName(),
@@ -185,10 +209,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 }
                 this.willProperties = connectMessage.payload().willProperties();
                 this.properties = connectMessage.variableHeader().properties();
-                ConnectPair connectPair = this.isMqtt5() ? this.parserConnectPair(this.properties) : null;
-                WillPair willPair = this.isMqtt5() ? this.parserWillPair(this.willProperties) : null;
-                connection.onReadIdle(2000,this::delayClose);
-                yield new ConnectPacket(this,this.clientId, this.clientIp,
+                this.setClientId(connectMessage.payload().clientIdentifier());
+                var connectPair = this.isMqtt5() ? this.parserConnectPair(this.properties) : null;
+                var willPair = this.isMqtt5() ? this.parserWillPair(this.willProperties) : null;
+                this.readIdle(2000, this::delayClose);
+                yield new ConnectPacket(this,
                         userDetail, willMessage,
                         connectMessage.variableHeader().isCleanSession(),
                         this.version,
@@ -198,24 +223,40 @@ public class MqttEndpoint implements Endpoint<Packet> {
                         willPair);
             }
             case PUBLISH -> {
-                MqttPublishMessage publishMessage = (MqttPublishMessage) mqttMessage;
-                yield new PublishPacket(this,publishMessage.variableHeader().packetId(), this.clientId, this.clientIp,
+                var publishMessage = (MqttPublishMessage) mqttMessage;
+                var pair = this.isMqtt5() ? this.parserPublishPair(publishMessage) : null;
+                yield new PublishPacket(this, publishMessage.variableHeader().packetId(),
                         publishMessage.variableHeader().topicName(), publishMessage.fixedHeader().qosLevel().value(),
-                        MessageUtils.readByteBuf(publishMessage.payload()), publishMessage.fixedHeader().isRetain(), System.currentTimeMillis());
+                        MessageUtils.readByteBuf(publishMessage.payload()), publishMessage.fixedHeader().isRetain(),
+                        false,true, System.currentTimeMillis(), pair);
 
             }
 
-            case PUBACK ->
-                    new PublishAckPacket(this,((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(), this.clientId, this.clientIp, System.currentTimeMillis());
-            case PUBREC ->
-                    new PublishRecPacket(this,((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(), this.clientId, this.clientIp, System.currentTimeMillis());
-            case PUBREL ->
-                    new PublishRelPacket(this,((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(), this.clientId, this.clientIp, System.currentTimeMillis());
-            case PUBCOMP ->
-                    new PublishCompPacket(this,((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(), this.clientId, this.clientIp, System.currentTimeMillis());
+            case PUBACK -> {
+                var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
+                yield new PublishAckPacket(this,
+                        ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId()
+                        , System.currentTimeMillis(), ackPair);
+            }
+            case PUBREC -> {
+                var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
+                yield new PublishRecPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId()
+                        , System.currentTimeMillis(), ackPair);
+            }
+            case PUBREL -> {
+                var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
+                yield new PublishRelPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                       System.currentTimeMillis(), ackPair);
+            }
+
+            case PUBCOMP -> {
+                var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
+                yield new PublishCompPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                       System.currentTimeMillis(), ackPair);
+            }
             case SUBSCRIBE -> {
-                MqttSubscribeMessage subscribeMessage = (MqttSubscribeMessage) mqttMessage;
-                Set<SubscribeTopic> subscribeInfos =
+                var subscribeMessage = (MqttSubscribeMessage) mqttMessage;
+                var subscribeInfos =
                         subscribeMessage
                                 .payload()
                                 .topicSubscriptions()
@@ -223,19 +264,28 @@ public class MqttEndpoint implements Endpoint<Packet> {
                                 .map(mqttTopicSubscription -> new SubscribeTopic(clientId, mqttTopicSubscription.topicName(),
                                         mqttTopicSubscription.qualityOfService().value()))
                                 .collect(Collectors.toSet());
-                yield new SubscribePacket(this,this.clientId, this.clientIp, subscribeInfos, System.currentTimeMillis());
+                var subPair = this.isMqtt5() ? this.parserSubscribePair(subscribeMessage) : null;
+                yield new SubscribePacket(this,subscribeMessage.variableHeader().messageId(), subscribeInfos,
+                        System.currentTimeMillis(), subPair);
             }
             case UNSUBSCRIBE -> {
-                MqttUnsubscribeMessage unsubscribeMessage = (MqttUnsubscribeMessage) mqttMessage;
-
-                yield new UnsubscribePacket(this,clientId, clientIp, new HashSet<>(unsubscribeMessage.payload().topics()), System.currentTimeMillis());
+                var unsubscribeMessage = (MqttUnsubscribeMessage) mqttMessage;
+                var unSubPair = this.isMqtt5() ? this.parserUnSubscribePair(unsubscribeMessage) : null;
+                yield new UnsubscribePacket(this,unsubscribeMessage.idAndPropertiesVariableHeader().messageId(), new HashSet<>(unsubscribeMessage.payload().topics()), System.currentTimeMillis(), unSubPair);
             }
-            case DISCONNECT -> new DisconnectPacket(this,clientId, clientIp, System.currentTimeMillis());
-            case PINGREQ -> new PingPacket(this,clientId, clientIp, System.currentTimeMillis());
-            case AUTH -> new AuthPacket(this,clientId, clientIp, System.currentTimeMillis());
+            case DISCONNECT -> {
+                var disconnectPair = this.isMqtt5() ? this.parserDisconnectPair(mqttMessage) : null;
+                yield new DisconnectPacket(this, clientId, clientIp, System.currentTimeMillis(), disconnectPair);
+            }
+            case PINGREQ -> new PingPacket(this, clientId, clientIp, System.currentTimeMillis());
+            case AUTH -> {
+                var authPair = this.isMqtt5() ? this.parserAuthPair(mqttMessage) : null;
+                yield new AuthPacket(this, clientId, clientIp, System.currentTimeMillis(), authPair);
+            }
             default -> throw new IllegalStateException("Unexpected value: " + mqttMessage);
         };
     }
+
 
     private void delayClose() {
         connection.dispose();
@@ -249,7 +299,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
         String contextType = getString(willProperties, MqttProperties.MqttPropertyType.CONTENT_TYPE);
         String responseTopic = getString(willProperties, MqttProperties.MqttPropertyType.RESPONSE_TOPIC);
         byte[] correlationData = getBytes(willProperties, MqttProperties.MqttPropertyType.CORRELATION_DATA);
-        List<MqttProperties.StringProperty> userProperty = (List<MqttProperties.StringProperty>) properties.getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        List<MqttProperties.StringProperty> userProperty = (List<MqttProperties.StringProperty>) willProperties.getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
         return new WillPair(willDelayInterval, payloadFormatIndicator,
                 messageExpiryInterval, contextType, responseTopic, correlationData, userProperty);
     }
@@ -267,6 +317,60 @@ public class MqttEndpoint implements Endpoint<Packet> {
         byte[] authData = getBytes(properties, MqttProperties.MqttPropertyType.AUTHENTICATION_DATA);
         return new ConnectPair(sessionExpiry, receiveMaximum, maxPacketSize, maxTopicAliasMaximum
                 , requestResponseInformation, requestProblemInformation, userProperty, authMethod, authData);
+    }
+
+    @SuppressWarnings("unchecked")
+    private AuthPair parserAuthPair(MqttMessage mqttMessage) {
+        var header = (MqttReasonCodeAndPropertiesVariableHeader) mqttMessage.variableHeader();
+        var responseTopic = getString(header.properties(), MqttProperties.MqttPropertyType.AUTHENTICATION_METHOD);
+        var authData = getBytes(header.properties(), MqttProperties.MqttPropertyType.AUTHENTICATION_DATA);
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new AuthPair(responseTopic, authData, header.reasonCode(), userProperty);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    private DisconnectPair parserDisconnectPair(MqttMessage mqttMessage) {
+        var header = (MqttReasonCodeAndPropertiesVariableHeader) mqttMessage.variableHeader();
+        var sessionExpiry = getInt(properties, MqttProperties.MqttPropertyType.SESSION_EXPIRY_INTERVAL);
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new DisconnectPair(header.reasonCode(), sessionExpiry, userProperty);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    private UnSubPair parserUnSubscribePair(MqttUnsubscribeMessage unsubscribeMessage) {
+        var header = unsubscribeMessage.idAndPropertiesVariableHeader();
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new UnSubPair(userProperty);
+    }
+
+    @SuppressWarnings("unchecked")
+    private SubPair parserSubscribePair(MqttSubscribeMessage unsubscribeMessage) {
+        var header = unsubscribeMessage.idAndPropertiesVariableHeader();
+        var subIdentifier = getInt(header.properties(), MqttProperties.MqttPropertyType.SUBSCRIPTION_IDENTIFIER);
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new SubPair(subIdentifier, userProperty);
+    }
+
+    @SuppressWarnings("unchecked")
+    private AckPair parserAckPair(MqttMessage mqttMessage) {
+        var header = (MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader();
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new AckPair(header.reasonCode(), userProperty);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PublishPair parserPublishPair(MqttPublishMessage publishMessage) {
+        final MqttProperties publishProperties = publishMessage.variableHeader().properties();
+        byte payloadFormatIndicator = (byte) getInt(publishProperties, MqttProperties.MqttPropertyType.PAYLOAD_FORMAT_INDICATOR);
+        int publicationExpiryInterval = getInt(publishProperties, MqttProperties.MqttPropertyType.PUBLICATION_EXPIRY_INTERVAL);
+        int topicAlias = getInt(publishProperties, MqttProperties.MqttPropertyType.TOPIC_ALIAS);
+        String responseTopic = getString(publishProperties, MqttProperties.MqttPropertyType.RESPONSE_TOPIC);
+        byte[] correlationData = getBytes(publishProperties, MqttProperties.MqttPropertyType.CORRELATION_DATA);
+        List<MqttProperties.StringProperty> userProperty = (List<MqttProperties.StringProperty>) publishProperties.getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new PublishPair(payloadFormatIndicator, publicationExpiryInterval, topicAlias,
+                responseTopic, correlationData, userProperty);
     }
 
 
@@ -293,11 +397,22 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     @Override
-    public void writeMessage(int messageId, String topic, int qos, byte[] payload, boolean retain) {
-
+    public void writeMessage(PublishPacket publishPacket, MqttProperties properties) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false,
+                MqttQoS.valueOf(publishPacket.qos()), publishPacket.retain(), 0);
+        MqttPublishVariableHeader variableHeader;
+        if (properties != null)
+            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId(), properties);
+        else
+            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId());
+        connection.outbound()
+                .sendObject(Mono.just(new MqttPublishMessage(mqttFixedHeader, variableHeader,
+                                PooledByteBufAllocator.DEFAULT.directBuffer().writeBytes(publishPacket.payload())))
+                        .then()
+                        .subscribe());
     }
 
-    public void writeConnectAck(MqttConnectReturnCode connectReturnCode) {
+    public void writeConnectAck(MqttConnectReturnCode connectReturnCode, MqttProperties properties) {
         MqttConnAckVariableHeader mqttConnAckVariableHeader = new MqttConnAckVariableHeader(connectReturnCode, false);
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
                 MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0X02);
@@ -308,28 +423,50 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
-    public void writeMessageAck(int messageId) {
+    public void writeMessageAck(int messageId, MqttMessageType messageType, MqttProperties properties) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(messageType, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttMessageIdAndPropertiesVariableHeader from = new MqttMessageIdAndPropertiesVariableHeader(messageId, properties);
+        connection.outbound()
+                .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
+                .then()
+                .subscribe();
+    }
+
+    @Override
+    public void writeSubAck(int messageId, List<Integer> responseCode,MqttProperties properties) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0);
+        MqttMessageIdAndPropertiesVariableHeader variableHeader  = new MqttMessageIdAndPropertiesVariableHeader(messageId,properties);
+
+        MqttSubAckPayload payload = new MqttSubAckPayload(responseCode);
+        this.sendObject(new MqttSubAckMessage(mqttFixedHeader, variableHeader, payload));
 
 
     }
 
     @Override
-    public void writeSubAck(int messageId) {
+    public void writeUnsubAck(int messageId, MqttProperties properties) {
 
     }
 
     @Override
-    public void writeUnsubAck(int messageId) {
+    public void writeDisconnect(MqttProperties properties) {
 
     }
 
-    @Override
-    public void writeDisconnect() {
 
+    private void sendObject(MqttMessage mqttMessage){
+        connection.outbound()
+                .sendObject(Mono.just(mqttMessage))
+                .then()
+                .subscribe();
     }
 
     @Override
     public void writePong() {
 
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 }

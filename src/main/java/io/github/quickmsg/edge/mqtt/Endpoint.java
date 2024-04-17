@@ -1,28 +1,34 @@
 package io.github.quickmsg.edge.mqtt;
 
+import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
+import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 /**
  * @author luxurong
  */
 public interface Endpoint<M> {
 
-    void writeMessage(int messageId,String topic,int qos,byte[] payload,boolean retain);
+    void writeMessage(PublishPacket publishPacket,MqttProperties properties);
 
-    void writeConnectAck(MqttConnectReturnCode connectReturnCode);
+    void writeConnectAck(MqttConnectReturnCode connectReturnCode,MqttProperties properties);
 
-    void writeMessageAck(int messageId);
+    void writeMessageAck(int messageId,MqttMessageType messageType,MqttProperties properties);
 
-    void writeSubAck(int messageId);
+    void writeSubAck(int messageId, List<Integer> responseCode, MqttProperties properties);
 
-    void writeUnsubAck(int messageId);
+    void writeUnsubAck(int messageId,MqttProperties properties);
 
-    void writeDisconnect();
+    void writeDisconnect(MqttProperties properties);
     void writePong();
+
+    List<SubscribeTopic> getSubscribeTopics();
 
     Flux<M> receive();
 
@@ -39,6 +45,8 @@ public interface Endpoint<M> {
     long connectTime();
 
     String getClientId();
+
+    String getClientIp();
 
 
     boolean isClosed();

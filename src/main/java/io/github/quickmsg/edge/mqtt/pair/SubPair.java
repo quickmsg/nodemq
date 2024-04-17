@@ -11,5 +11,5 @@ import java.util.List;
  * 订阅标识符与由于该 SUBSCRIBE 数据包而创建或修改的任何订阅相关联。如果存在订阅标识符，则它与订阅一起存储。如果未指定此属性，则订阅标识符的缺失将与订阅一起存储。
  * @param userProperty 用户属性 多个key-value类型
  */
-public record SubPair(String subIdentifier, List<MqttProperties.StringPair> userProperty) {
+public record SubPair(int subIdentifier, List<MqttProperties.StringProperty> userProperty) {
 }

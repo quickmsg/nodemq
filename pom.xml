@@ -19,6 +19,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.8</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-jexl3</artifactId>
             <version>3.2.1</version>
@@ -26,29 +32,13 @@
         <dependency>
             <groupId>io.projectreactor.netty</groupId>
             <artifactId>reactor-netty</artifactId>
-            <version>1.1.12</version>
+            <version>1.1.18</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-mqtt</artifactId>
-            <version>4.1.100.Final</version>
+            <version>4.1.108.Final</version>
         </dependency>
-        <dependency>
-            <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast</artifactId>
-            <version>5.3.6</version>
-        </dependency>
-
-<!--        <dependency>-->
-<!--            <groupId>org.apache.logging.log4j</groupId>-->
-<!--            <artifactId>log4j-api</artifactId>-->
-<!--            <version>2.19.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.logging.log4j</groupId>-->
-<!--            <artifactId>log4j-core</artifactId>-->
-<!--            <version>2.19.0</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
@@ -64,18 +54,7 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson.core.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.apache.logging.log4j</groupId>-->
-<!--            <artifactId>log4j-slf4j-impl</artifactId>-->
-<!--            <version>2.19.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.slf4j</groupId>-->
-<!--            <artifactId>slf4j-log4j12</artifactId>-->
-<!--            <version>2.0.0-alpha6</version>-->
-<!--        </dependency>-->
     </dependencies>
-    <!-- tencent maven -->
     <repositories>
         <repository>
             <id>tencent</id>
@@ -94,11 +73,9 @@
             <id>jar</id>
             <build>
                 <plugins>
-                    <!-- 配置依赖包 -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
-                        <!-- 相当于执行 mvn 命令，将依赖打包到指定目录 -->
                         <executions>
                             <execution>
                                 <id>copy-dependencies</id>
@@ -107,7 +84,6 @@
                                     <goal>copy-dependencies</goal>
                                 </goals>
                                 <configuration>
-                                    <!--将依赖打包至 target 下的 lib 目录-->
                                     <outputDirectory>${project.build.directory}/lib</outputDirectory>
                                 </configuration>
                             </execution>

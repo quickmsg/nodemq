@@ -7,5 +7,5 @@ import java.util.List;
 /**
  * @author luxurong
  */
-public record DisconnectPair(int sessionExpiryInterval,String reason, List<MqttProperties.StringPair> userProperty) {
+public record DisconnectPair(byte reason,int sessionExpiryInterval, List<MqttProperties.StringProperty> userProperty) {
 }

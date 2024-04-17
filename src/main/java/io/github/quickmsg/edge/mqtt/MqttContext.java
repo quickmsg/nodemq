@@ -7,14 +7,20 @@ import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpointRegistry;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.process.MqttProcessor;
+import io.github.quickmsg.edge.mqtt.retry.RetryManager;
+import io.github.quickmsg.edge.mqtt.retry.RetryMessage;
+import io.github.quickmsg.edge.mqtt.retry.RetryTask;
+import io.github.quickmsg.edge.mqtt.retry.TimeAckManager;
 import io.github.quickmsg.edge.mqtt.topic.MqttTopicRegistry;
 import io.github.quickmsg.edge.mqtt.util.JsonReader;
+import io.netty.handler.codec.mqtt.MqttMessageType;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -32,11 +38,16 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private final Authenticator authenticator;
 
+
+    private final RetryManager<RetryMessage,Packet> retryManager;
+
     private  AsyncLogger asyncLogger;
 
     private MqttConfig mqttConfig;
 
     private final Scheduler scheduler;
+
+    private final RetainStore<PublishPacket> retainStore;
 
 
     public MqttContext() {
@@ -46,10 +57,14 @@ public class MqttContext implements Context, Consumer<Packet> {
     public MqttContext(EndpointRegistry endpointRegistry, TopicRegistry topicRegistry, Authenticator authenticator ) {
         this.scheduler = Schedulers.newParallel("event",Runtime.getRuntime().availableProcessors());
         this.endpointRegistry = endpointRegistry;
+        this.retryManager = new TimeAckManager<>(1000, TimeUnit.SECONDS,2048,this::doPacketRetry);
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
         this.authenticator = authenticator;
+        this.retainStore = new RetainStore<>();
     }
+
+
 
 
     @Override
@@ -109,34 +124,101 @@ public class MqttContext implements Context, Consumer<Packet> {
     }
 
     @Override
+    public RetainStore<PublishPacket> getRetainStore() {
+        return retainStore;
+    }
+
+    @Override
     public void accept(Packet packet) {
         switch (packet) {
-            case PublishPacket publishPacket -> mqttProcessor.processPublish(publishPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case SubscribePacket subscribePacket -> mqttProcessor.processSubscribe(subscribePacket)
-                    .subscribeOn(scheduler).subscribe();
+            case PublishPacket publishPacket -> {
+              if(publishPacket.endpoint().connected()){
+                  mqttProcessor.processPublish(publishPacket)
+                          .subscribeOn(scheduler).subscribe();
+              }
+            }
+            case SubscribePacket subscribePacket -> {
+                if(subscribePacket.endpoint().connected()) {
+                    mqttProcessor.processSubscribe(subscribePacket)
+                            .subscribeOn(scheduler).subscribe();
+
+                }
+            }
             case ConnectPacket connectPacket-> mqttProcessor.processConnect(connectPacket)
                     .subscribeOn(scheduler).subscribe();
             case DisconnectPacket disconnectPacket->mqttProcessor.processDisconnect(disconnectPacket)
                     .subscribeOn(scheduler).subscribe();
-            case PublishAckPacket publishAckPacket->mqttProcessor.processPublishAck(publishAckPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case AuthPacket authPacket->mqttProcessor.processAuth(authPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case UnsubscribePacket unsubscribePacket->mqttProcessor.processUnSubscribe(unsubscribePacket)
-                    .subscribeOn(scheduler).subscribe();
-            case PublishRelPacket publishRelPacket ->mqttProcessor.processPublishRel(publishRelPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case PublishRecPacket publishRecPacket->mqttProcessor.processPublishRec(publishRecPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case PublishCompPacket publishCompPacket->mqttProcessor.processPublishComp(publishCompPacket)
-                    .subscribeOn(scheduler).subscribe();
-            case PingPacket pingPacket->mqttProcessor.processPing(pingPacket)
-                    .subscribeOn(scheduler).subscribe();
+            case PublishAckPacket publishAckPacket->{
+                if(publishAckPacket.endpoint().connected()) {
+                    mqttProcessor.processPublishAck(publishAckPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case AuthPacket authPacket->{
+                if(authPacket.endpoint().connected()) {
+                    mqttProcessor.processAuth(authPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case UnsubscribePacket unsubscribePacket->{
+                if(unsubscribePacket.endpoint().connected()) {
+                    mqttProcessor.processUnSubscribe(unsubscribePacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case PublishRelPacket publishRelPacket ->{
+                if(publishRelPacket.endpoint().connected()) {
+                    mqttProcessor.processPublishRel(publishRelPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case PublishRecPacket publishRecPacket->{
+                if(publishRecPacket.endpoint().connected()) {
+                    mqttProcessor.processPublishRec(publishRecPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case PublishCompPacket publishCompPacket->{
+                if(publishCompPacket.endpoint().connected()) {
+                    mqttProcessor.processPublishComp(publishCompPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
+            case PingPacket pingPacket->{
+                if(pingPacket.endpoint().connected()) {
+                    mqttProcessor.processPing(pingPacket)
+                            .subscribeOn(scheduler).subscribe();
+                }
+            }
             case ClosePacket closePacket->mqttProcessor.processClose(closePacket)
                     .subscribeOn(scheduler).subscribe();
             default -> {
             }
         }
+    }
+    private void doPacketRetry(RetryTask<RetryMessage, Packet> retryTask) {
+        final Endpoint<Packet> endpoint = this.getChannelRegistry().getEndpoint(retryTask.getK().clientId());
+        if(endpoint == null || endpoint.isClosed()){
+            retryTask.cancel();
+            return;
+        }
+        switch (retryTask.getM()){
+            case PublishPacket publishPacket ->{
+                endpoint.writeMessage(publishPacket,publishPacket.getMqttProperties());
+            }
+            case PublishRecPacket publishRecPacket->{
+                endpoint.writeMessageAck(publishRecPacket.messageId(), MqttMessageType.PUBREC,publishRecPacket.getMqttProperties());
+
+            }
+            case PublishRelPacket publishRelPacket->{
+                endpoint.writeMessageAck(publishRelPacket.messageId(), MqttMessageType.PUBREL,
+                        publishRelPacket.getMqttProperties());
+            }
+            case null, default -> {}
+        }
+    }
+
+    public RetryManager<RetryMessage, Packet> getRetryManager() {
+        return retryManager;
     }
 }

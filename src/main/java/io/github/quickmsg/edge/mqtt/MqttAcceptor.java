@@ -1,6 +1,5 @@
 package io.github.quickmsg.edge.mqtt;
 
-import com.hazelcast.internal.util.UuidUtil;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.config.MqttConfig;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -16,6 +15,7 @@ import reactor.netty.tcp.SslProvider;
 import reactor.netty.tcp.TcpServer;
 
 import java.io.File;
+import java.util.UUID;
 
 /**
  * @author luxurong
@@ -28,7 +28,7 @@ public class MqttAcceptor implements EndpointAcceptor {
     private DisposableServer disposableServer;
 
     public MqttAcceptor() {
-        this.id = UuidUtil.newSecureUuidString();
+        this.id = UUID.randomUUID().toString();
     }
 
     @Override
@@ -56,8 +56,7 @@ public class MqttAcceptor implements EndpointAcceptor {
                             connection
                                     .addHandlerLast(MqttEncoder.INSTANCE)
                                     .addHandlerLast(new MqttDecoder(config.maxMessageSize()));
-                            contextFluxSink.next(new MqttEndpoint(config.connectTimeout(),connection,
-                                    connection.channel().remoteAddress().toString()));
+                            contextFluxSink.next(new MqttEndpoint(config.connectTimeout(),connection));
 
                         })
                         .bind()

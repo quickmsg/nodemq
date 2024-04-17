@@ -7,5 +7,5 @@ import java.util.List;
 /**
  * @author luxurong
  */
-public record AuthPair(String authMethod, byte[] authData,String reason, List<MqttProperties.StringPair> userProperty) {
+public record AuthPair(String authMethod, byte[] authData,byte reason, List<MqttProperties.StringProperty> userProperties) {
 }

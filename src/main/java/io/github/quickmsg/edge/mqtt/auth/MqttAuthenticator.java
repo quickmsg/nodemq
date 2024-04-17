@@ -10,6 +10,6 @@ import java.util.Map;
 public class MqttAuthenticator implements Authenticator {
     @Override
     public boolean auth(String clientId, String username, byte[] password) {
-        return false;
+        return true;
     }
 }

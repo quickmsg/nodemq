@@ -1,12 +1,5 @@
 package io.github.quickmsg.edge.mqtt;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.quickmsg.edge.mqtt.config.MqttConfig;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
 
 /**
  * @author luxurong
