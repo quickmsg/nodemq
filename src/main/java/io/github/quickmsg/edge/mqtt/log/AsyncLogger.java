@@ -1,6 +1,6 @@
 package io.github.quickmsg.edge.mqtt.log;
 
-import io.github.quickmsg.edge.mqtt.config.MqttConfig;
+import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,10 +16,10 @@ public class AsyncLogger implements Logger {
     private java.util.logging.Logger rootLogger;
 
 
-    public AsyncLogger(MqttConfig.LogItem logItem) {
+    public AsyncLogger(BootstrapConfig.LogConfig logConfig) {
         try {
             this.rootLogger = java.util.logging.Logger.getLogger("");
-            switch (logItem.level()) {
+            switch (logConfig.level()) {
                 case "info", "INFO" -> this.rootLogger.setLevel(Level.INFO);
                 case "debug", "DEBUG" -> this.rootLogger.setLevel(Level.ALL);
                 default -> this.rootLogger.setLevel(Level.SEVERE);
@@ -28,7 +28,7 @@ public class AsyncLogger implements Logger {
               for (Handler handler : handlers) {
                  this.rootLogger.removeHandler(handler);
             }
-             if (logItem.persisted()) {
+             if (logConfig.persisted()) {
                 StreamHandler handler = new FileHandler(
                         "logs/NodeMQ-%g.log", 100 * 1024 * 1024, 20, true);
                 handler.setFormatter(new CustomFormatter());

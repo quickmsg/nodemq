@@ -1,12 +1,8 @@
 package io.github.quickmsg.edge.mqtt.util;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import io.github.quickmsg.edge.mqtt.config.MqttConfig;
 
 import java.io.File;
 import java.io.IOException;

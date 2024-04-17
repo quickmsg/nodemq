@@ -2,6 +2,7 @@ package io.github.quickmsg.edge.mqtt.endpoint;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
+import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
 import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
@@ -14,7 +15,6 @@ import reactor.netty.Connection;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.ConsoleHandler;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -46,6 +46,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private volatile boolean closed;
 
     private volatile boolean keepSession;
+
+
+    private final BootstrapConfig.MqttConfig mqttConfig;
 
 
     private transient AtomicInteger atomicInteger;
@@ -82,12 +85,13 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return clientIp;
     }
 
-    public MqttEndpoint(int connectTimeout, Connection connection) {
+    public MqttEndpoint(BootstrapConfig.MqttConfig mqttConfig, Connection connection) {
+        this.mqttConfig = mqttConfig;
         this.connection = connection;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
         this.connectTime = System.currentTimeMillis();
         this.subscribeTopics = new ArrayList<>();
-        this.readIdle(connectTimeout, this::close);
+        this.readIdle(this.mqttConfig.connectTimeout(), this::close);
     }
 
     public int getCloseCode() {
@@ -153,6 +157,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
     @Override
     public long connectTime() {
         return connectTime;
+    }
+
+    @Override
+    public BootstrapConfig.MqttConfig getMqttConfig() {
+        return this.mqttConfig;
     }
 
     @Override

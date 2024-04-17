@@ -1,12 +1,12 @@
 package io.github.quickmsg.edge.mqtt;
 
+import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
 import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -43,6 +43,8 @@ public interface Endpoint<M> {
     MqttProperties willProperties();
 
     long connectTime();
+
+    BootstrapConfig.MqttConfig getMqttConfig();
 
     String getClientId();
 

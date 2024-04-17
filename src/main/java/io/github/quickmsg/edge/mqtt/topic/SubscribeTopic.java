@@ -19,4 +19,10 @@ public record SubscribeTopic(String clientId,String topic,int qos,boolean share)
     public int hashCode() {
         return Objects.hash(clientId, topic, share);
     }
+
+
+    public boolean isWildcard(){
+        return topic.endsWith("#") || topic.contains("+");
+    }
+
 }

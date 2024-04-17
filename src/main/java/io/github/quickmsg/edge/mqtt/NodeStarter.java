@@ -7,8 +7,7 @@ package io.github.quickmsg.edge.mqtt;
 public class NodeStarter {
 
     public static void main(String[] args) {
-        MqttContext mqttContext = new MqttContext();
-        mqttContext.start()
+        new MqttContext().start()
                 .subscribe();
     }
 }

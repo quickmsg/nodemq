@@ -1,8 +1,10 @@
 package io.github.quickmsg.edge.mqtt;
 
-import io.github.quickmsg.edge.mqtt.config.MqttConfig;
+import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
 import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
+import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import reactor.core.publisher.Flux;
 
 import java.util.Map;
@@ -11,7 +13,7 @@ import java.util.Map;
  * @author luxurong
  */
 public interface Context {
-    MqttConfig getMqttConfig();
+    BootstrapConfig getMqttConfig();
     Flux<Packet> start();
 
     Map<String,MqttAcceptor> getMqttAcceptors();
@@ -25,6 +27,8 @@ public interface Context {
     Authenticator getAuthenticator();
 
     AsyncLogger getLogger();
+
+    LoadBalancer<SubscribeTopic> getLoadBalancer();
 
     RetainStore<PublishPacket> getRetainStore();
 
