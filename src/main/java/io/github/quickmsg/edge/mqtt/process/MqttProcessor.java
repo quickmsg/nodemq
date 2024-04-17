@@ -8,10 +8,12 @@ import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
+import org.checkerframework.checker.units.qual.K;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,7 +39,6 @@ public record MqttProcessor(MqttContext context) implements Processor {
                 endpoint.setClientId(endpoint.getClientId());
                 endpoint.setConnected(true);
                 endpoint.onClose(()->this.clearEndpoint(endpoint).subscribe());
-
                 endpoint.readIdle(packet.keepalive()* 1000L, () -> {
                     endpoint.setCloseCode(3);
                     endpoint.close();
@@ -115,12 +116,14 @@ public record MqttProcessor(MqttContext context) implements Processor {
         return Mono.fromRunnable(()->{
             var  subscribeTopics = packet.topics();
             if(subscribeTopics!=null && !subscribeTopics.isEmpty()){
-                for(String topic: subscribeTopics){
+                for(Map.Entry<String, Boolean> topicEntry: subscribeTopics.entrySet()){
                     var clientId = packet.endpoint().getClientId();
                     context().getLogger().printInfo(String.format("unsub  %s %s %s ",clientId,
-                            packet.endpoint().getClientIp(),topic));
+                            packet.endpoint().getClientIp(),topicEntry.getValue() ?
+                                    "$share/"+topicEntry.getKey(): topicEntry.getKey() ));
                     context().getTopicRegistry()
-                            .removeTopicSubscribe(topic,new SubscribeTopic(clientId, topic,0));
+                            .removeTopicSubscribe(topicEntry.getKey(),
+                                    new SubscribeTopic(clientId, topicEntry.getKey(),0,topicEntry.getValue()));
                 }
             }
             packet.endpoint()

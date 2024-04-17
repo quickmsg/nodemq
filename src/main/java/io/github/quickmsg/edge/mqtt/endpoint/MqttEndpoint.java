@@ -12,12 +12,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.ConsoleHandler;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +23,9 @@ import java.util.stream.Collectors;
  */
 
 public class MqttEndpoint implements Endpoint<Packet> {
+
+
+    private static final Pattern SHARE_MESSAGE_PATTERN = Pattern.compile("\\$share/(.*)");
 
     private final Connection connection;
     private String clientId;
@@ -261,8 +262,20 @@ public class MqttEndpoint implements Endpoint<Packet> {
                                 .payload()
                                 .topicSubscriptions()
                                 .stream()
-                                .map(mqttTopicSubscription -> new SubscribeTopic(clientId, mqttTopicSubscription.topicName(),
-                                        mqttTopicSubscription.qualityOfService().value()))
+                                .map(mqttTopicSubscription -> {
+                                    var matcher =SHARE_MESSAGE_PATTERN.matcher(mqttTopicSubscription.topicFilter());
+                                    SubscribeTopic subscribeTopic;
+                                    if (matcher.find()) {
+                                        subscribeTopic = new SubscribeTopic(clientId,matcher.group(1),
+                                                mqttTopicSubscription.qualityOfService().value(),true);
+                                    }
+                                    else{
+                                        subscribeTopic =new SubscribeTopic(clientId,mqttTopicSubscription.topicFilter(),
+                                                mqttTopicSubscription.qualityOfService().value(),false);
+                                    }
+                                    return subscribeTopic;
+
+                                })
                                 .collect(Collectors.toSet());
                 var subPair = this.isMqtt5() ? this.parserSubscribePair(subscribeMessage) : null;
                 yield new SubscribePacket(this,subscribeMessage.variableHeader().messageId(), subscribeInfos,
@@ -271,7 +284,19 @@ public class MqttEndpoint implements Endpoint<Packet> {
             case UNSUBSCRIBE -> {
                 var unsubscribeMessage = (MqttUnsubscribeMessage) mqttMessage;
                 var unSubPair = this.isMqtt5() ? this.parserUnSubscribePair(unsubscribeMessage) : null;
-                yield new UnsubscribePacket(this,unsubscribeMessage.idAndPropertiesVariableHeader().messageId(), new HashSet<>(unsubscribeMessage.payload().topics()), System.currentTimeMillis(), unSubPair);
+                Map<String,Boolean> topics = new HashMap<>();
+                for(String topicFilter: unsubscribeMessage.payload().topics()){
+                    var matcher =SHARE_MESSAGE_PATTERN.matcher(topicFilter);
+                    if (matcher.find()) {
+                        topics.put(matcher.group(1),true);
+                    }
+                    else{
+                        topics.put(topicFilter,false);
+                    }
+                }
+                yield new UnsubscribePacket(this,unsubscribeMessage.idAndPropertiesVariableHeader().messageId(),
+                        topics, System.currentTimeMillis(), unSubPair);
+
             }
             case DISCONNECT -> {
                 var disconnectPair = this.isMqtt5() ? this.parserDisconnectPair(mqttMessage) : null;

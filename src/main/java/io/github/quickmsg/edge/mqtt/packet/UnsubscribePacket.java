@@ -5,12 +5,13 @@ import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.UnSubPair;
 import io.netty.handler.codec.mqtt.MqttProperties;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
  * @author luxurong
  */
-public record UnsubscribePacket(MqttEndpoint endpoint,int messageId, Set<String> topics,
+public record UnsubscribePacket(MqttEndpoint endpoint,int messageId, Map<String,Boolean> topics,
                                 long timestamp, UnSubPair unSubPair) implements Packet{
 
 

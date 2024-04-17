@@ -113,7 +113,7 @@ public class TopicTreeNode<T> {
 
     }
 
-    public boolean removeObjectTopic(String topicFilter, T t) {
+    public void removeObjectTopic(String topicFilter, T t) {
         TopicTreeNode<T> node = this;
         String[] topics = topicFilter.split("/");
         for (String topic : topics) {
@@ -131,10 +131,8 @@ public class TopicTreeNode<T> {
                     }
                     atomicLong.decrementAndGet();
                 }
-                return result;
             }
         }
-        return false;
     }
 
     public Set<T> getAllObjectsTopic() {

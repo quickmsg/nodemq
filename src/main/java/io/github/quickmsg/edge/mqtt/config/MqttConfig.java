@@ -9,24 +9,31 @@ import java.util.concurrent.TimeUnit;
 public record MqttConfig(List<MqttItem> mqtt,SystemItem system,LogItem log) {
     public static MqttConfig defaultConfig() {
         return new MqttConfig(
-                List.of(new MqttItem("0.0.0.0",1883,65535,3,false,null,false)),
-                        new SystemItem(2000L,2,1000,1000),new LogItem("",false));
+                List.of(new MqttItem("0.0.0.0",1883,65535,
+                        3,false,null,false,
+                        2,1000,1000,
+                        true,true)),
+                        new SystemItem(),new LogItem("",false));
     }
 
 
-    public record SystemItem(long connectTimeout,
-                             int maxQosLevel,
-                             int maxSessionMessageSize,
-                             int maxRetainMessageSize
-                              ){}
+    public record SystemItem(
+                             ){}
 
+    
     public record MqttItem(String host,
                            int port,
                            int maxMessageSize,
                            int connectTimeout,
                            boolean wiretap,
                            SslConfig sslConfig,
-                           boolean useWebsocket){}
+                           boolean useWebsocket,
+                           int maxQosLevel,
+                           int maxSessionMessageSize,
+                           int maxRetainMessageSize,
+                           boolean supportWildcardSubscribe,
+                           boolean supportShareSubscribe
+    ){}
 
 
     public record LogItem(String level,
