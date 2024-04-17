@@ -8,7 +8,6 @@ import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
-import org.checkerframework.checker.units.qual.K;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
@@ -40,7 +39,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     endpoint.setCloseCode(3);
                     endpoint.close();
                 });
-                final Endpoint<Packet> oldEndpoint = context.getChannelRegistry().registry(endpoint);
+                final Endpoint<Packet> oldEndpoint = context.getChannelRegistry().registry(endpoint); 
                 if (oldEndpoint != null) {
                     oldEndpoint.close();
                 }

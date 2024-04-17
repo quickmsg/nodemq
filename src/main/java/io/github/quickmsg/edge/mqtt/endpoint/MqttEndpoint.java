@@ -2,7 +2,7 @@ package io.github.quickmsg.edge.mqtt.endpoint;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
@@ -48,7 +48,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private volatile boolean keepSession;
 
 
-    private final BootstrapConfig.MqttConfig mqttConfig;
+    private final InitConfig.MqttConfig mqttConfig;
 
 
     private transient AtomicInteger atomicInteger;
@@ -85,7 +85,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return clientIp;
     }
 
-    public MqttEndpoint(BootstrapConfig.MqttConfig mqttConfig, Connection connection) {
+    public MqttEndpoint(InitConfig.MqttConfig mqttConfig, Connection connection) {
         this.mqttConfig = mqttConfig;
         this.connection = connection;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
@@ -160,7 +160,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
-    public BootstrapConfig.MqttConfig getMqttConfig() {
+    public InitConfig.MqttConfig getMqttConfig() {
         return this.mqttConfig;
     }
 

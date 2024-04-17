@@ -1,26 +1,26 @@
 [
   {
-    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig",
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig",
     "allDeclaredConstructors": true,
     "allPublicMethods": true
   },
   {
-    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$SystemItem",
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig$SystemConfig",
     "allDeclaredConstructors": true,
     "allPublicMethods": true
   },
   {
-    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$MqttItem",
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig$MqttConfig",
     "allDeclaredConstructors": true,
     "allPublicMethods": true
   },
   {
-    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$LogItem",
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig$LogConfig",
     "allDeclaredConstructors": true,
     "allPublicMethods": true
   },
   {
-    "name": "io.github.quickmsg.edge.mqtt.config.MqttConfig$SslConfig",
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig$SslConfig",
     "allDeclaredConstructors": true,
     "allPublicMethods": true
   },

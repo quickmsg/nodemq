@@ -1,6 +1,6 @@
 package io.github.quickmsg.edge.mqtt.log;
 
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,7 +16,7 @@ public class AsyncLogger implements Logger {
     private java.util.logging.Logger rootLogger;
 
 
-    public AsyncLogger(BootstrapConfig.LogConfig logConfig) {
+    public AsyncLogger(InitConfig.LogConfig logConfig) {
         try {
             this.rootLogger = java.util.logging.Logger.getLogger("");
             switch (logConfig.level()) {

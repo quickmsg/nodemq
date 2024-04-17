@@ -1,7 +1,7 @@
 package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.mqtt.MqttDecoder;
@@ -39,7 +39,7 @@ public class MqttAcceptor implements EndpointAcceptor {
     @Override
     public Flux<Endpoint<Packet>> accept() {
         return Flux.deferContextual(contextView -> {
-            var config = contextView.get(BootstrapConfig.MqttConfig.class);
+            var config = contextView.get(InitConfig.MqttConfig.class);
             var mqttContext = contextView.get(MqttContext.class);
             var tcpServer = config.sslConfig() != null ? ssl(config.sslConfig()) : TcpServer.create();
             return Flux.create(contextFluxSink -> {
@@ -84,13 +84,13 @@ public class MqttAcceptor implements EndpointAcceptor {
         }
     }
 
-    public TcpServer ssl(BootstrapConfig.SslConfig sslConfig) {
+    public TcpServer ssl(InitConfig.SslConfig sslConfig) {
         TcpServer server = TcpServer.create();
         server = server.secure(sslContextSpec -> this.secure(sslContextSpec, sslConfig));
         return server;
     }
 
-    private void secure(SslProvider.SslContextSpec sslContextSpec, BootstrapConfig.SslConfig sslConfig) {
+    private void secure(SslProvider.SslContextSpec sslContextSpec, InitConfig.SslConfig sslConfig) {
         try {
             SslContextBuilder sslContextBuilder;
             if (sslConfig != null) {

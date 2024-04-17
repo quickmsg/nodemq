@@ -2,7 +2,7 @@ package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.auth.MqttAuthenticator;
 
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpointRegistry;
 import io.github.quickmsg.edge.mqtt.loadbalance.HashLoadBalancer;
 import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
@@ -47,7 +47,7 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private AsyncLogger asyncLogger;
 
-    private BootstrapConfig mqttConfig;
+    private InitConfig mqttConfig;
 
     private final Scheduler scheduler;
 
@@ -76,7 +76,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     public Flux<Packet> start() {
         this.mqttConfig = readConfig();
         if (this.mqttConfig == null) {
-            this.mqttConfig = BootstrapConfig.defaultConfig();
+            this.mqttConfig = InitConfig.defaultConfig();
         }
         this.loadBalancer = switch (mqttConfig.system().strategy()) {
             case HASH -> new HashLoadBalancer<>();
@@ -88,7 +88,7 @@ public class MqttContext implements Context, Consumer<Packet> {
                     final MqttAcceptor mqttAcceptor = new MqttAcceptor();
                     mqttContext.put(mqttAcceptor.id(), mqttAcceptor);
                     return mqttAcceptor.accept()
-                            .contextWrite(context -> context.put(BootstrapConfig.MqttConfig.class, mqttItem))
+                            .contextWrite(context -> context.put(InitConfig.MqttConfig.class, mqttItem))
                             .contextWrite(context -> context.put(MqttContext.class, this));
                 })
                 .flatMap(Endpoint::receive)
@@ -120,7 +120,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     }
 
     @Override
-    public BootstrapConfig getMqttConfig() {
+    public InitConfig getMqttConfig() {
         return mqttConfig;
     }
 
@@ -134,8 +134,8 @@ public class MqttContext implements Context, Consumer<Packet> {
         return this.loadBalancer;
     }
 
-    private BootstrapConfig readConfig() {
-        return JsonReader.readJson("mqtt.json", BootstrapConfig.class);
+    private InitConfig readConfig() {
+        return JsonReader.readJson("mqtt.json", InitConfig.class);
     }
 
     @Override

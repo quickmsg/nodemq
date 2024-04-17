@@ -1,6 +1,6 @@
 package io.github.quickmsg.edge.mqtt;
 
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
 import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
@@ -13,7 +13,7 @@ import java.util.Map;
  * @author luxurong
  */
 public interface Context {
-    BootstrapConfig getMqttConfig();
+    InitConfig getMqttConfig();
     Flux<Packet> start();
 
     Map<String,MqttAcceptor> getMqttAcceptors();

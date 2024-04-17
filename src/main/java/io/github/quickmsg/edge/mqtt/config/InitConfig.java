@@ -7,9 +7,9 @@ import java.util.List;
 /**
  * @author luxurong
  */
-public record BootstrapConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig log) {
-    public static BootstrapConfig defaultConfig() {
-        return new BootstrapConfig(
+public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig log) {
+    public static InitConfig defaultConfig() {
+        return new InitConfig(
                 List.of(new MqttConfig("0.0.0.0",1883,65535,
                         3,false,null,false,false,
                         2,1000,1000,

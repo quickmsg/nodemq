@@ -1,6 +1,6 @@
 package io.github.quickmsg.edge.mqtt;
 
-import io.github.quickmsg.edge.mqtt.config.BootstrapConfig;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
@@ -44,7 +44,7 @@ public interface Endpoint<M> {
 
     long connectTime();
 
-    BootstrapConfig.MqttConfig getMqttConfig();
+    InitConfig.MqttConfig getMqttConfig();
 
     String getClientId();
 
