@@ -141,7 +141,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
                                     context().getLoadBalancer().select(subscribeTopicList, packet.endpoint().getClientId());
                             var shareEndpoint = channelRegistry.getEndpoint(select.clientId());
                             shareEndpoint.writeMessage(new PublishPacket(shareEndpoint,
-                                    shareEndpoint.generateMessageId(), packet.topic(), Math.min(packet.qos(),select.qos()), packet.payload(),
+                                    shareEndpoint.generateMessageId(), "$share/"+packet.topic(), Math.min(packet.qos(),select.qos()), packet.payload(),
                                     packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),true);
                         });
             }

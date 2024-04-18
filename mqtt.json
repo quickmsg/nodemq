@@ -1,0 +1,27 @@
+{
+  "mqtt": [{
+    "host": "0.0.0.0",
+    "port": 1883,
+    "maxMessageSize": 65535,
+    "connectTimeout": 3,
+    "wiretap": false,
+    "sslConfig": null,
+    "useWebsocket": false,
+    "proxy": false,
+    "maxQosLevel": 2,
+    "maxSessionMessageSize": 1000,
+    "maxRetainMessageSize": 1000,
+    "supportWildcardSubscribe": true,
+    "supportShareSubscribe": true,
+    "unConfirmFlightWindowSize": 100,
+    "retrySize": 10,
+    "retryInterval": 2000
+  }],
+  "system": {
+    "shareStrategy": "RANDOM"
+  },
+  "log": {
+    "level": "INFO",
+    "persisted": false
+  }
+}
