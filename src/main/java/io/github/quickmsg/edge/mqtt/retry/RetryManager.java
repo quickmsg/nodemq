@@ -6,7 +6,7 @@ package io.github.quickmsg.edge.mqtt.retry;
  */
 public interface RetryManager<K,M> {
 
-   void doRetry(RetryTask<K,M> retryTask);
+   boolean doRetry(RetryTask<K,M> retryTask);
 
 
    M getRetryAttach(K k);

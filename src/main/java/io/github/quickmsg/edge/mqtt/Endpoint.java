@@ -1,7 +1,7 @@
 package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
-import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
+import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttMessageType;
@@ -15,11 +15,17 @@ import java.util.List;
  */
 public interface Endpoint<M> {
 
-    void writeMessage(PublishPacket publishPacket,MqttProperties properties);
+    void writeMessage(PublishPacket publishPacket,boolean retry);
+
+    void writePublishAck(int messageId,byte reason,MqttProperties mqttProperties);
 
     void writeConnectAck(MqttConnectReturnCode connectReturnCode,MqttProperties properties);
 
-    void writeMessageAck(int messageId,MqttMessageType messageType,MqttProperties properties);
+    void writePublishRec(PublishRecPacket publishRecPacket,boolean retry);
+
+    void writePublishRel(PublishRelPacket publishRelPacket,boolean retry);
+
+    void writePublishComp(PublishCompPacket publishCompPacket);
 
     void writeSubAck(int messageId, List<Integer> responseCode, MqttProperties properties);
 
@@ -63,5 +69,13 @@ public interface Endpoint<M> {
 
 
     void close();
+
+    boolean cacheQosMessage(PublishPacket packet);
+
+
+    PublishPacket removeQosMessage(int messageId);
+
+
+    PublishPacket getQosMessage(int messageId);
 
 }

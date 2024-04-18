@@ -56,7 +56,7 @@ public class MqttAcceptor implements EndpointAcceptor {
                             connection
                                     .addHandlerLast(MqttEncoder.INSTANCE)
                                     .addHandlerLast(new MqttDecoder(config.maxMessageSize()));
-                            contextFluxSink.next(new MqttEndpoint(config,connection));
+                            contextFluxSink.next(new MqttEndpoint(mqttContext,config,connection));
 
                         })
                         .bind()

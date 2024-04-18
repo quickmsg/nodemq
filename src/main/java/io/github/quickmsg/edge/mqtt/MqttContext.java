@@ -17,7 +17,6 @@ import io.github.quickmsg.edge.mqtt.retry.TimeAckManager;
 import io.github.quickmsg.edge.mqtt.topic.MqttTopicRegistry;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.github.quickmsg.edge.mqtt.util.JsonReader;
-import io.netty.handler.codec.mqtt.MqttMessageType;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -64,7 +63,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     public MqttContext(EndpointRegistry endpointRegistry, TopicRegistry topicRegistry, Authenticator authenticator) {
         this.scheduler = Schedulers.newParallel("event", Runtime.getRuntime().availableProcessors());
         this.endpointRegistry = endpointRegistry;
-        this.retryManager = new TimeAckManager<>(1000, TimeUnit.SECONDS, 2048, this::doPacketRetry);
+        this.retryManager = new TimeAckManager<>(1000, TimeUnit.SECONDS, 2048, 100, this::doPacketRetry);
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
         this.authenticator = authenticator;
@@ -78,7 +77,7 @@ public class MqttContext implements Context, Consumer<Packet> {
         if (this.mqttConfig == null) {
             this.mqttConfig = InitConfig.defaultConfig();
         }
-        this.loadBalancer = switch (mqttConfig.system().strategy()) {
+        this.loadBalancer = switch (mqttConfig.system().shareStrategy()) {
             case HASH -> new HashLoadBalancer<>();
             case RANDOM -> new RandomLoadBalancer<>();
         };
@@ -220,15 +219,14 @@ public class MqttContext implements Context, Consumer<Packet> {
         }
         switch (retryTask.getM()) {
             case PublishPacket publishPacket -> {
-                endpoint.writeMessage(publishPacket, publishPacket.getMqttProperties());
+                endpoint.writeMessage(publishPacket,false);
             }
             case PublishRecPacket publishRecPacket -> {
-                endpoint.writeMessageAck(publishRecPacket.messageId(), MqttMessageType.PUBREC, publishRecPacket.getMqttProperties());
+                endpoint.writePublishRec(publishRecPacket,false);
 
             }
             case PublishRelPacket publishRelPacket -> {
-                endpoint.writeMessageAck(publishRelPacket.messageId(), MqttMessageType.PUBREL,
-                        publishRelPacket.getMqttProperties());
+                endpoint.writePublishRel(publishRelPacket,false);
             }
             case null, default -> {
             }

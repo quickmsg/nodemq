@@ -1,6 +1,7 @@
 package io.github.quickmsg.edge.mqtt.endpoint;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
+import io.github.quickmsg.edge.mqtt.MqttContext;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.pair.*;
@@ -14,6 +15,9 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,24 +51,16 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private volatile boolean keepSession;
 
+    private Queue<Packet> messageQueue = new ConcurrentLinkedQueue<>();
+
 
     private final InitConfig.MqttConfig mqttConfig;
 
 
     private transient AtomicInteger atomicInteger;
 
-    public int generateMessageId() {
-        int index = atomicInteger.incrementAndGet();
-        if (index > 65535) {
-            if (atomicInteger.compareAndSet(index, 1)) {
-                return 1;
-            } else {
-                return atomicInteger.incrementAndGet();
-            }
-        }
-        return index;
-    }
 
+    private final Map<Integer,PublishPacket> qos2Cache = new ConcurrentSkipListMap<>();
 
     /**
      * 0  client close
@@ -81,11 +77,14 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private final List<SubscribeTopic> subscribeTopics;
 
+    private final MqttContext mqttContext;
+
     public String getClientIp() {
         return clientIp;
     }
 
-    public MqttEndpoint(InitConfig.MqttConfig mqttConfig, Connection connection) {
+    public MqttEndpoint(MqttContext mqttContext, InitConfig.MqttConfig mqttConfig, Connection connection) {
+        this.mqttContext = mqttContext;
         this.mqttConfig = mqttConfig;
         this.connection = connection;
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
@@ -196,6 +195,42 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
+    public boolean cacheQosMessage(PublishPacket packet) {
+        if(qos2Cache.size()> getMqttConfig().qos2FlightWindowSize()){
+            return false;
+        }
+        if(qos2Cache.containsKey(packet.messageId())){
+            return false;
+        }
+        qos2Cache.put(packet.messageId(),packet);
+        return true;
+    }
+
+
+    @Override
+    public PublishPacket removeQosMessage(int messageId) {
+        return null;
+    }
+
+    @Override
+    public PublishPacket getQosMessage(int messageId) {
+        return null;
+    }
+
+    public int generateMessageId() {
+        int index = atomicInteger.incrementAndGet();
+        if (index > 65535) {
+            if (atomicInteger.compareAndSet(index, 1)) {
+                return 1;
+            } else {
+                return atomicInteger.incrementAndGet();
+            }
+        }
+        return index;
+    }
+
+
+    @Override
     public void onClose(Runnable close) {
         connection.onDispose(close::run);
     }
@@ -244,24 +279,32 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
             case PUBACK -> {
                 var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
+
                 yield new PublishAckPacket(this,
-                        ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId()
+                        ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).messageId(),
+                        ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode()
                         , System.currentTimeMillis(), ackPair);
             }
             case PUBREC -> {
                 var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
-                yield new PublishRecPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId()
+                yield new PublishRecPacket(this,
+                        ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                        ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode()
                         , System.currentTimeMillis(), ackPair);
             }
             case PUBREL -> {
                 var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
-                yield new PublishRelPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                yield new PublishRelPacket(this,
+                        ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                        ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode(),
                        System.currentTimeMillis(), ackPair);
             }
 
             case PUBCOMP -> {
                 var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
-                yield new PublishCompPacket(this, ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                yield new PublishCompPacket(this,
+                        ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
+                        ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode(),
                        System.currentTimeMillis(), ackPair);
             }
             case SUBSCRIBE -> {
@@ -390,8 +433,10 @@ public class MqttEndpoint implements Endpoint<Packet> {
     @SuppressWarnings("unchecked")
     private AckPair parserAckPair(MqttMessage mqttMessage) {
         var header = (MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader();
-        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(MqttProperties.MqttPropertyType.USER_PROPERTY.value());
-        return new AckPair(header.reasonCode(), userProperty);
+        var reason = getString(header.properties(), MqttProperties.MqttPropertyType.REASON_STRING);
+        var userProperty = (List<MqttProperties.StringProperty>) header.properties().getProperties(
+                MqttProperties.MqttPropertyType.USER_PROPERTY.value());
+        return new AckPair(reason, userProperty);
     }
 
     @SuppressWarnings("unchecked")
@@ -430,13 +475,15 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
 
+
     @Override
-    public void writeMessage(PublishPacket publishPacket, MqttProperties properties) {
+    public void writeMessage(PublishPacket publishPacket,boolean retry) {
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false,
                 MqttQoS.valueOf(publishPacket.qos()), publishPacket.retain(), 0);
         MqttPublishVariableHeader variableHeader;
         if (properties != null)
-            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId(), properties);
+            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId(),
+                    publishPacket.getMqttProperties());
         else
             variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId());
         connection.outbound()
@@ -445,6 +492,8 @@ public class MqttEndpoint implements Endpoint<Packet> {
                         .then()
                         .subscribe());
     }
+
+
 
     public void writeConnectAck(MqttConnectReturnCode connectReturnCode, MqttProperties properties) {
         MqttConnAckVariableHeader mqttConnAckVariableHeader = new MqttConnAckVariableHeader(connectReturnCode, false);
@@ -457,14 +506,51 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
-    public void writeMessageAck(int messageId, MqttMessageType messageType, MqttProperties properties) {
-        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(messageType, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
-        MqttMessageIdAndPropertiesVariableHeader from = new MqttMessageIdAndPropertiesVariableHeader(messageId, properties);
+    public void writePublishAck(int messageId,byte reason,MqttProperties mqttProperties) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBACK,
+                false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(messageId,
+                reason,mqttProperties);
         connection.outbound()
                 .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
                 .then()
                 .subscribe();
     }
+
+
+    @Override
+    public void writePublishRec(PublishRecPacket publishRecPacket, boolean retry) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRecPacket.messageId(),
+                publishRecPacket.reason(),publishRecPacket.getMqttProperties());
+        connection.outbound()
+                .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
+                .then()
+                .subscribe();
+    }
+
+    @Override
+    public void writePublishRel(PublishRelPacket publishRelPacket, boolean retry) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREL, !retry, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRelPacket.messageId(),
+                publishRelPacket.reason(),publishRelPacket.getMqttProperties());
+        connection.outbound()
+                .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
+                .then()
+                .subscribe();
+    }
+
+    @Override
+    public void writePublishComp(PublishCompPacket publishCompPacket) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBCOMP, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishCompPacket.messageId(),
+                publishCompPacket.reason(),publishCompPacket.getMqttProperties());
+        connection.outbound()
+                .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
+                .then()
+                .subscribe();
+    }
+
 
     @Override
     public void writeSubAck(int messageId, List<Integer> responseCode,MqttProperties properties) {

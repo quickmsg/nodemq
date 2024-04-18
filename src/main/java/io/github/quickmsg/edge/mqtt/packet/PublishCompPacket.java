@@ -10,7 +10,7 @@ import io.netty.handler.codec.mqtt.MqttProperties;
  */
 
 
-public record PublishCompPacket(MqttEndpoint endpoint, int messageId, long timestamp,
+public record PublishCompPacket(MqttEndpoint endpoint, int messageId,byte reason, long timestamp,
                                 AckPair ackPair) implements Packet {
 
 

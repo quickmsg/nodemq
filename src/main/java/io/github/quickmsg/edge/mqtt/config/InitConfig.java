@@ -13,12 +13,13 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                 List.of(new MqttConfig("0.0.0.0",1883,65535,
                         3,false,null,false,false,
                         2,1000,1000,
-                        true,true)),
+                        true,true,
+                        100,100,10,2000)),
                         new SystemConfig(Strategy.RANDOM),new LogConfig("",false));
     }
 
 
-    public record SystemConfig(Strategy strategy){
+    public record SystemConfig(Strategy shareStrategy){
 
     }
 
@@ -35,7 +36,14 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              int maxSessionMessageSize,
                              int maxRetainMessageSize,
                              boolean supportWildcardSubscribe,
-                             boolean supportShareSubscribe
+                             boolean supportShareSubscribe,
+                             int qos1FlightWindowSize,
+                             int qos2FlightWindowSize,
+                             int qos2RetrySize,
+                             int qos2RetryInterval
+
+
+
     ){}
 
 

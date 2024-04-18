@@ -9,7 +9,7 @@ import io.netty.handler.codec.mqtt.MqttProperties;
  * @author luxurong
  */
 
-public record PublishRelPacket(MqttEndpoint endpoint, int messageId, long timestamp,
+public record PublishRelPacket(MqttEndpoint endpoint, int messageId,byte reason, long timestamp,
                                AckPair ackPair) implements Packet {
 
 
