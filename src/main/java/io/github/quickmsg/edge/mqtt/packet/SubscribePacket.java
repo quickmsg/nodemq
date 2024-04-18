@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.packet;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.AckPair;
@@ -13,7 +14,7 @@ import java.util.Set;
  * @author luxurong
  */
 
-public record SubscribePacket(MqttEndpoint endpoint,int messageId, Set<SubscribeTopic>  subscribeTopics, long timestamp
+public record SubscribePacket(Endpoint<Packet> endpoint, int messageId, Set<SubscribeTopic>  subscribeTopics, long timestamp
         , SubPair subPair)
         implements Packet {
 

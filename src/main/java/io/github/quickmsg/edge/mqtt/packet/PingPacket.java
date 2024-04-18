@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.packet;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.netty.handler.codec.mqtt.MqttProperties;
@@ -8,7 +9,7 @@ import io.netty.handler.codec.mqtt.MqttProperties;
  * @author luxurong
  */
 
-public record PingPacket(MqttEndpoint endpoint, String clientId, String clientIp, long timestamp) implements Packet {
+public record PingPacket(Endpoint<Packet> endpoint, String clientId, String clientIp, long timestamp) implements Packet {
 
 
     @Override

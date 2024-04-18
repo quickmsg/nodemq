@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.packet;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.AckPair;
@@ -9,7 +10,7 @@ import io.netty.handler.codec.mqtt.MqttProperties;
  * @author luxurong
  */
 
-public record PublishRelPacket(MqttEndpoint endpoint, int messageId,byte reason, long timestamp,
+public record PublishRelPacket(Endpoint<Packet> endpoint, int messageId, byte reason, long timestamp,
                                AckPair ackPair) implements Packet {
 
 

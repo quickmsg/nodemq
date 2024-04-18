@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.packet;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.ConnectPair;
@@ -11,7 +12,7 @@ import io.netty.handler.codec.mqtt.MqttVersion;
  * @author luxurong
  */
 
-public record ConnectPacket(MqttEndpoint endpoint,
+public record ConnectPacket(Endpoint<Packet> endpoint,
                             ConnectUserDetail connectUserDetail,
                             ConnectWillMessage willMessage,
                             boolean cleanSession,

@@ -15,6 +15,8 @@ import java.util.List;
  */
 public interface Endpoint<M> {
 
+    int generateMessageId();
+
     void writeMessage(PublishPacket publishPacket,boolean retry);
 
     void writePublishAck(int messageId,byte reason,MqttProperties mqttProperties);
@@ -78,4 +80,11 @@ public interface Endpoint<M> {
 
     PublishPacket getQos2Message(int messageId);
 
+    void setClientId(String clientId);
+
+    void setConnected(boolean b);
+
+    void setCloseCode(int i);
+
+    int getCloseCode();
 }

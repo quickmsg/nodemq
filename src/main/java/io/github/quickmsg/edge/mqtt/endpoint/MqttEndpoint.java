@@ -216,6 +216,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return qos2Cache.get(messageId);
     }
 
+    @Override
     public int generateMessageId() {
         int index = atomicInteger.incrementAndGet();
         if (index > 65535) {

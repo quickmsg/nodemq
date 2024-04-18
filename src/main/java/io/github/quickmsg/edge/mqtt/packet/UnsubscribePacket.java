@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.packet;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.UnSubPair;
@@ -11,7 +12,7 @@ import java.util.Set;
 /**
  * @author luxurong
  */
-public record UnsubscribePacket(MqttEndpoint endpoint,int messageId, Map<String,Boolean> topics,
+public record UnsubscribePacket(Endpoint<Packet> endpoint, int messageId, Map<String,Boolean> topics,
                                 long timestamp, UnSubPair unSubPair) implements Packet{
 
 
