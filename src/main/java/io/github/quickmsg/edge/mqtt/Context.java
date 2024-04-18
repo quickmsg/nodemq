@@ -3,10 +3,8 @@ package io.github.quickmsg.edge.mqtt;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
-import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Scheduler;
 
 import java.util.Map;
 
@@ -30,7 +28,7 @@ public interface Context {
 
     LoadBalancer<SubscribeTopic> getLoadBalancer();
 
-    RetainStore<PublishPacket> getRetainStore();
+    RetainStore getRetainStore();
 
 
 }

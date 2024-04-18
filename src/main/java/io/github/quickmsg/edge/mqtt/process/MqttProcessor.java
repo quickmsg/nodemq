@@ -1,11 +1,11 @@
 package io.github.quickmsg.edge.mqtt.process;
 
 import io.github.quickmsg.edge.mqtt.*;
+import io.github.quickmsg.edge.mqtt.msg.RetainMessage;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.pair.AckPair;
 import io.github.quickmsg.edge.mqtt.retry.RetryMessage;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
-import io.github.quickmsg.edge.mqtt.util.JsonReader;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
 import reactor.core.publisher.Mono;
@@ -109,6 +109,25 @@ public record MqttProcessor(MqttContext context) implements Processor {
                 }
                 default -> {
                 }
+            }
+            if(packet.payload().length == 0){
+                context.getRetainStore().del(packet.topic());
+            }
+            if(packet.retain()){
+                context.getRetainStore().add(packet.topic(),
+                        new RetainMessage(context.getMqttConfig().system().maxRetainExpiryInterval(),
+                                packet.endpoint().getClientId(),
+                                packet.endpoint().getClientId(),
+                                packet.messageId(),
+                                packet.topic(),
+                                packet.qos(),
+                                packet.payload(),
+                                true,
+                                false,
+                                packet.retry(),
+                                packet.timestamp(),
+                                packet.pair()
+                                ));
             }
             this.sendMessage(packet);
         });

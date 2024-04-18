@@ -8,6 +8,7 @@ import io.github.quickmsg.edge.mqtt.loadbalance.HashLoadBalancer;
 import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
 import io.github.quickmsg.edge.mqtt.loadbalance.RandomLoadBalancer;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
+import io.github.quickmsg.edge.mqtt.msg.RetainMessage;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.process.MqttProcessor;
 import io.github.quickmsg.edge.mqtt.retry.RetryManager;
@@ -50,7 +51,7 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private final Scheduler scheduler;
 
-    private final RetainStore<PublishPacket> retainStore;
+    private  RetainStore retainStore;
 
 
     private LoadBalancer<SubscribeTopic> loadBalancer;
@@ -67,7 +68,7 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
         this.authenticator = authenticator;
-        this.retainStore = new RetainStore<>();
+        this.retainStore = new RetainStore();
     }
 
 
@@ -139,7 +140,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     }
 
     @Override
-    public RetainStore<PublishPacket> getRetainStore() {
+    public RetainStore getRetainStore() {
         return retainStore;
     }
 

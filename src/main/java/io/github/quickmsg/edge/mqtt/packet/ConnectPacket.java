@@ -2,7 +2,6 @@ package io.github.quickmsg.edge.mqtt.packet;
 
 import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
-import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.ConnectPair;
 import io.github.quickmsg.edge.mqtt.pair.WillPair;
 import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;

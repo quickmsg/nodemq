@@ -1,25 +1,55 @@
 package io.github.quickmsg.edge.mqtt;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
+import io.github.quickmsg.edge.mqtt.config.InitConfig;
+import io.github.quickmsg.edge.mqtt.msg.RetainMessage;
+import org.checkerframework.checker.index.qual.NonNegative;
+
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author luxurong
  */
-public class RetainStore<V>{
+public class RetainStore{
+    private final Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
+            .expireAfter(new Expiry<String, RetainMessage>() {
+                @Override
+                public long expireAfterCreate(String key, RetainMessage value, long currentTime) {
+                    return currentTime+value.expireTime();
+                }
 
-    private final Map<String,V> cacheMap = new ConcurrentHashMap<>();
+                @Override
+                public long expireAfterUpdate(String key, RetainMessage value, long currentTime, @NonNegative long currentDuration) {
+                    return 0;
+                }
 
-    public void add(String topic,V v){
-        cacheMap.put(topic,v);
+                @Override
+                public long expireAfterRead(String key, RetainMessage value, long currentTime, @NonNegative long currentDuration) {
+                    return 0;
+                }
+            })
+            .build();
+
+
+
+    public RetainStore() {
+
     }
 
-    public   void del(String topic){
-        cacheMap.remove(topic);
+    public void add(String topic,RetainMessage retainMessage){
+        cacheMap.put(topic,retainMessage);
     }
 
-    public V get(String topic){
-       return  cacheMap.get(topic);
+    public  void del(String topic){
+        cacheMap.invalidate(topic);
+    }
+
+    public RetainMessage get(String topic){
+        return  cacheMap.getIfPresent(topic);
     }
 
 

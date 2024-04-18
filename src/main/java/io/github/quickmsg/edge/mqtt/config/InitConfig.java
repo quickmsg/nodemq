@@ -12,14 +12,18 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
         return new InitConfig(
                 List.of(new MqttConfig("0.0.0.0",1883,65535,
                         3,false,null,false,"/mqtt",false,
-                        2,1000,1000,
+                        2,
                         true,true,
                         100,10,2000)),
-                        new SystemConfig(Strategy.RANDOM),new LogConfig("INFO",false));
+                        new SystemConfig(Strategy.RANDOM,
+                                1000,1000,24*7),new LogConfig("INFO",false));
     }
 
 
-    public record SystemConfig(Strategy shareStrategy){
+    public record SystemConfig(Strategy shareStrategy,
+                               int maxSessionMessageSize,
+                               int maxRetainMessageSize,
+                               long maxRetainExpiryInterval){
 
     }
 
@@ -34,13 +38,12 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              String websocketPath,
                              boolean proxy,
                              int maxQosLevel,
-                             int maxSessionMessageSize,
-                             int maxRetainMessageSize,
                              boolean supportWildcardSubscribe,
                              boolean supportShareSubscribe,
                              int unConfirmFlightWindowSize,
                              int retrySize,
                              int retryInterval
+
 
 
 
