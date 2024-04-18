@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class RetryTask<K, M> implements TimerTask {
 
-    private final TimeAckManager<K, M> timeAckManager;
+    private final RetryManager<K, M> timeAckManager;
 
     private int retryCount;
 
@@ -28,7 +28,7 @@ public class RetryTask<K, M> implements TimerTask {
     private final K k;
 
 
-    public RetryTask(TimeAckManager<K, M> timeAckManager, K k, M m, int retrySize, int retryPeriod) {
+    public RetryTask(RetryManager<K, M> timeAckManager, K k, M m, int retrySize, int retryPeriod) {
         this.timeAckManager = timeAckManager;
         this.k = k;
         this.m = m;

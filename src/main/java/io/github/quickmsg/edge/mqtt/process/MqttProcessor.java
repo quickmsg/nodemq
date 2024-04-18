@@ -65,20 +65,29 @@ public record MqttProcessor(MqttContext context) implements Processor {
             final var subscribeTopics = topicRegistry.searchTopicSubscribe(packet.topic());
             switch (packet.qos()) {
                 case 1 -> {
-                    endpoint.writePublishAck(packet.messageId(),(byte)0,packet.getMqttProperties());
+                    if(context.getRetryManager().checkOverLimit()){
+                        endpoint.writePublishAck(packet.messageId(),
+                                MqttReasonCodes.PubAck.QUOTA_EXCEEDED.byteValue(),packet.getMqttProperties());
+                        return;
+                    }
+                    else{
+                        endpoint.writePublishAck(packet.messageId(),(byte)0,packet.getMqttProperties());
+                    }
                 }
                 case 2 -> {
                     PublishRecPacket publishRecPacket;
-                    if(endpoint.cacheQosMessage(packet)){
+                    if(endpoint.cacheQos2Message(packet)){
                         publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
                                 (byte) 0,System.currentTimeMillis(),new AckPair(null,packet.pair().userProperty()));
+                        endpoint.writePublishRec(publishRecPacket,true);
                     }
                     else {
+                        //流量超过直接回复reason code 不在重试
                         publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
                                 MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(),System.currentTimeMillis(),new AckPair(null,packet.pair().userProperty()));
+                        endpoint.writePublishRec(publishRecPacket,false);
+                        return;
                     }
-                    endpoint.writePublishRec(publishRecPacket,true);
-                    return;
                 }
                 default -> {
                 }
@@ -216,7 +225,8 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublishComp(PublishCompPacket packet) {
         return Mono.fromRunnable(() -> {
-            context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(), packet.messageId()));
+            context().getRetryManager().cancelRetry(
+                    new RetryMessage(packet.endpoint().getClientId(), packet.messageId()));
         });
     }
 

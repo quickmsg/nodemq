@@ -6,6 +6,8 @@ package io.github.quickmsg.edge.mqtt.retry;
  */
 public interface RetryManager<K,M> {
 
+   boolean  checkOverLimit();
+
    boolean doRetry(RetryTask<K,M> retryTask);
 
 

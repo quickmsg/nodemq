@@ -25,6 +25,12 @@ public class TimeAckManager<K,M> extends HashedWheelTimer implements RetryManage
         this.retryAccepter = retryAccepter;
     }
 
+
+    @Override
+    public boolean checkOverLimit() {
+        return retryMap.size() >=  maxUnConfirmMessageSize;
+    }
+
     @Override
     public boolean doRetry(RetryTask<K,M> retryTask) {
         if(retryMap.size() < maxUnConfirmMessageSize){

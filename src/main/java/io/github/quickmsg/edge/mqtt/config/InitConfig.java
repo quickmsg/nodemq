@@ -39,8 +39,8 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              boolean supportShareSubscribe,
                              int qos1FlightWindowSize,
                              int qos2FlightWindowSize,
-                             int qos2RetrySize,
-                             int qos2RetryInterval
+                             int retrySize,
+                             int retryInterval
 
 
 

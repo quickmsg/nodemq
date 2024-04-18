@@ -6,6 +6,8 @@ import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
+import io.github.quickmsg.edge.mqtt.retry.RetryMessage;
+import io.github.quickmsg.edge.mqtt.retry.RetryTask;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.github.quickmsg.edge.mqtt.util.MessageUtils;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -15,9 +17,8 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,8 +51,6 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private volatile boolean closed;
 
     private volatile boolean keepSession;
-
-    private Queue<Packet> messageQueue = new ConcurrentLinkedQueue<>();
 
 
     private final InitConfig.MqttConfig mqttConfig;
@@ -195,8 +194,8 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
-    public boolean cacheQosMessage(PublishPacket packet) {
-        if(qos2Cache.size()> getMqttConfig().qos2FlightWindowSize()){
+    public boolean cacheQos2Message(PublishPacket packet) {
+        if(qos2Cache.size()>= getMqttConfig().qos2FlightWindowSize()){
             return false;
         }
         if(qos2Cache.containsKey(packet.messageId())){
@@ -208,13 +207,13 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     @Override
-    public PublishPacket removeQosMessage(int messageId) {
-        return null;
+    public PublishPacket removeQos2Message(int messageId) {
+        return qos2Cache.remove(messageId);
     }
 
     @Override
-    public PublishPacket getQosMessage(int messageId) {
-        return null;
+    public PublishPacket getQos2Message(int messageId) {
+        return qos2Cache.get(messageId);
     }
 
     public int generateMessageId() {
@@ -491,6 +490,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
                                 PooledByteBufAllocator.DEFAULT.directBuffer().writeBytes(publishPacket.payload())))
                         .then()
                         .subscribe());
+        if(retry){
+            this.doRetry(publishPacket);
+        }
     }
 
 
@@ -527,6 +529,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
                 .then()
                 .subscribe();
+        if(retry){
+            this.doRetry(publishRecPacket);
+        }
     }
 
     @Override
@@ -538,6 +543,18 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
                 .then()
                 .subscribe();
+        if(retry){
+            this.doRetry(publishRelPacket);
+        }
+    }
+
+    private boolean doRetry(Packet packet) {
+        var retryManager = mqttContext.getRetryManager();
+        var retryMessage = new RetryMessage(packet.endpoint().getClientId(), packet.messageId());
+        return retryManager.doRetry(new RetryTask<>(retryManager,retryMessage
+                ,packet,
+                packet.endpoint().getMqttConfig().retrySize(),
+                packet.endpoint().getMqttConfig().retryInterval()));
     }
 
     @Override
@@ -559,17 +576,20 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
         MqttSubAckPayload payload = new MqttSubAckPayload(responseCode);
         this.sendObject(new MqttSubAckMessage(mqttFixedHeader, variableHeader, payload));
-
-
     }
 
     @Override
     public void writeUnsubAck(int messageId, MqttProperties properties) {
-
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.UNSUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttMessageIdAndPropertiesVariableHeader variableHeader = new MqttMessageIdAndPropertiesVariableHeader(messageId,properties);
+        this.sendObject(new MqttUnsubAckMessage(mqttFixedHeader, variableHeader));
     }
 
     @Override
-    public void writeDisconnect(MqttProperties properties) {
+    public void writeDisconnect(byte reasonCode,MqttProperties properties) {
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.DISCONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttReasonCodeAndPropertiesVariableHeader variableHeader = new MqttReasonCodeAndPropertiesVariableHeader(reasonCode,properties);
+        this.sendObject(new MqttMessage(mqttFixedHeader, variableHeader));
 
     }
 
@@ -583,7 +603,8 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePong() {
-
+        this.sendObject(new MqttMessage(new MqttFixedHeader(MqttMessageType.PINGRESP,
+                false, MqttQoS.AT_MOST_ONCE, false, 0)));
     }
 
     public void setClientId(String clientId) {

@@ -31,7 +31,7 @@ public interface Endpoint<M> {
 
     void writeUnsubAck(int messageId,MqttProperties properties);
 
-    void writeDisconnect(MqttProperties properties);
+    void writeDisconnect(byte reasonCode,MqttProperties properties);
     void writePong();
 
     List<SubscribeTopic> getSubscribeTopics();
@@ -70,12 +70,12 @@ public interface Endpoint<M> {
 
     void close();
 
-    boolean cacheQosMessage(PublishPacket packet);
+    boolean cacheQos2Message(PublishPacket packet);
 
 
-    PublishPacket removeQosMessage(int messageId);
+    PublishPacket removeQos2Message(int messageId);
 
 
-    PublishPacket getQosMessage(int messageId);
+    PublishPacket getQos2Message(int messageId);
 
 }

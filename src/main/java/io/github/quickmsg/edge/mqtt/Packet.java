@@ -14,6 +14,8 @@ public interface Packet {
     MqttProperties getMqttProperties();
 
 
-
+    default int messageId(){
+        return  0;
+    }
 
 }
