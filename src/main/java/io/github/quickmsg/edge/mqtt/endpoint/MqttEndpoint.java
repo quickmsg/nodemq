@@ -17,8 +17,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -56,10 +55,10 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private final InitConfig.MqttConfig mqttConfig;
 
 
-    private transient AtomicInteger atomicInteger;
+    private final transient AtomicInteger atomicInteger = new AtomicInteger();
 
 
-    private final Map<Integer,PublishPacket> qos2Cache = new ConcurrentSkipListMap<>();
+    private final Map<Integer,PublishPacket> qos2Cache = new ConcurrentHashMap<>();
 
     /**
      * 0  client close
@@ -195,9 +194,6 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public boolean cacheQos2Message(PublishPacket packet) {
-        if(qos2Cache.size()>= getMqttConfig().qos2FlightWindowSize()){
-            return false;
-        }
         if(qos2Cache.containsKey(packet.messageId())){
             return false;
         }
@@ -236,7 +232,6 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     private Packet transfer(MqttMessage mqttMessage) {
-        System.out.println("test");
         return switch (mqttMessage.fixedHeader().messageType()) {
             case CONNECT -> {
                 var connectMessage = (MqttConnectMessage) mqttMessage;
@@ -482,15 +477,28 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 MqttQoS.valueOf(publishPacket.qos()), publishPacket.retain(), 0);
         MqttPublishVariableHeader variableHeader;
         if (properties != null)
-            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId(),
+            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),publishPacket.messageId(),
                     publishPacket.getMqttProperties());
         else
-            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),this.generateMessageId());
+            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(),publishPacket.messageId());
+
         connection.outbound()
                 .sendObject(Mono.just(new MqttPublishMessage(mqttFixedHeader, variableHeader,
                                 PooledByteBufAllocator.DEFAULT.directBuffer().writeBytes(publishPacket.payload())))
-                        .then()
-                        .subscribe());
+                       )
+                .then()
+                .doOnSuccess(VOID->{
+                    mqttContext.getLogger().printInfo(String.format("write pub success  %s %s %s %d %s ",
+                            publishPacket.endpoint().getClientId(),
+                            publishPacket.endpoint().getClientIp(),"qos"+publishPacket.qos(), publishPacket.messageId(),
+                            HexFormat.of().formatHex(publishPacket.payload())));
+                })
+                .doOnError(throwable->{
+                    mqttContext.getLogger().printError(String.format("write error success  %s  %s  %s %d %s", publishPacket.endpoint().getClientId(),
+                            publishPacket.endpoint().getClientIp(),"qos"+publishPacket.qos(), publishPacket.messageId(),
+                            HexFormat.of().formatHex(publishPacket.payload())),throwable);
+                })
+                .subscribe();
         if(retry){
             this.doRetry(publishPacket);
         }
@@ -499,6 +507,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     public void writeConnectAck(MqttConnectReturnCode connectReturnCode, MqttProperties properties) {
+        mqttContext.getLogger().printInfo(String.format("write connect ack success  %s %s ",
+                this.getClientId(),
+                this.getClientIp()));
         MqttConnAckVariableHeader mqttConnAckVariableHeader = new MqttConnAckVariableHeader(connectReturnCode, false);
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(
                 MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0X02);
@@ -510,6 +521,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePublishAck(int messageId,byte reason,MqttProperties mqttProperties) {
+        mqttContext.getLogger().printInfo(String.format("write pub ack success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), messageId));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBACK,
                 false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(messageId,
@@ -523,6 +537,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePublishRec(PublishRecPacket publishRecPacket, boolean retry) {
+        mqttContext.getLogger().printInfo(String.format("write pub rec success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), publishRecPacket.messageId()));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRecPacket.messageId(),
                 publishRecPacket.reason(),publishRecPacket.getMqttProperties());
@@ -537,6 +554,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePublishRel(PublishRelPacket publishRelPacket, boolean retry) {
+        mqttContext.getLogger().printInfo(String.format("write pub rel success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), publishRelPacket.messageId()));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREL, !retry, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRelPacket.messageId(),
                 publishRelPacket.reason(),publishRelPacket.getMqttProperties());
@@ -551,7 +571,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private boolean doRetry(Packet packet) {
         var retryManager = mqttContext.getRetryManager();
-        var retryMessage = new RetryMessage(packet.endpoint().getClientId(), packet.messageId());
+        var retryMessage = new RetryMessage(packet.endpoint().getClientId(), packet.optCode(),packet.messageId());
         return retryManager.doRetry(new RetryTask<>(retryManager,retryMessage
                 ,packet,
                 packet.endpoint().getMqttConfig().retrySize(),
@@ -560,6 +580,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePublishComp(PublishCompPacket publishCompPacket) {
+        mqttContext.getLogger().printInfo(String.format("write publish comp success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), publishCompPacket.messageId()));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBCOMP, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishCompPacket.messageId(),
                 publishCompPacket.reason(),publishCompPacket.getMqttProperties());
@@ -571,7 +594,10 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     @Override
-    public void writeSubAck(int messageId, List<Integer> responseCode,MqttProperties properties) {
+    public void writeSubAck(int messageId, List<Integer> responseCode, MqttProperties properties) {
+        mqttContext.getLogger().printInfo(String.format("write sub ack success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), messageId));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0);
         MqttMessageIdAndPropertiesVariableHeader variableHeader  = new MqttMessageIdAndPropertiesVariableHeader(messageId,properties);
 
@@ -581,6 +607,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writeUnsubAck(int messageId, MqttProperties properties) {
+        mqttContext.getLogger().printInfo(String.format("write unsub ack success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), messageId));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.UNSUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttMessageIdAndPropertiesVariableHeader variableHeader = new MqttMessageIdAndPropertiesVariableHeader(messageId,properties);
         this.sendObject(new MqttUnsubAckMessage(mqttFixedHeader, variableHeader));
@@ -588,6 +617,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writeDisconnect(byte reasonCode,MqttProperties properties) {
+        mqttContext.getLogger().printInfo(String.format("write disconnect success  %s %s %d ",
+                this.getClientId(),
+                this.getClientIp(), (int)reasonCode));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.DISCONNECT, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttReasonCodeAndPropertiesVariableHeader variableHeader = new MqttReasonCodeAndPropertiesVariableHeader(reasonCode,properties);
         this.sendObject(new MqttMessage(mqttFixedHeader, variableHeader));
@@ -604,6 +636,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @Override
     public void writePong() {
+        mqttContext.getLogger().printInfo(String.format("write pong success  %s %s  ",
+                this.getClientId(),
+                this.getClientIp()));
         this.sendObject(new MqttMessage(new MqttFixedHeader(MqttMessageType.PINGRESP,
                 false, MqttQoS.AT_MOST_ONCE, false, 0)));
     }

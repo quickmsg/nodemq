@@ -1,5 +1,6 @@
 package io.github.quickmsg.edge.mqtt.retry;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 

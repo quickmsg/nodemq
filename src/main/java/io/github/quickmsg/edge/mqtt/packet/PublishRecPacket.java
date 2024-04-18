@@ -4,6 +4,7 @@ import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.AckPair;
+import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttProperties;
 
 /**
@@ -25,4 +26,11 @@ public record PublishRecPacket(Endpoint<Packet> endpoint, int messageId, byte re
             return MqttProperties.NO_PROPERTIES;
         }
     }
+
+    @Override
+    public int optCode() {
+        return 1;
+    }
+
+
 }

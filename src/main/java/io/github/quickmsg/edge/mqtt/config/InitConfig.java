@@ -14,8 +14,8 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                         3,false,null,false,false,
                         2,1000,1000,
                         true,true,
-                        100,100,10,2000)),
-                        new SystemConfig(Strategy.RANDOM),new LogConfig("",false));
+                        100,10,2000)),
+                        new SystemConfig(Strategy.RANDOM),new LogConfig("INFO",false));
     }
 
 
@@ -37,8 +37,7 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              int maxRetainMessageSize,
                              boolean supportWildcardSubscribe,
                              boolean supportShareSubscribe,
-                             int qos1FlightWindowSize,
-                             int qos2FlightWindowSize,
+                             int unConfirmFlightWindowSize,
                              int retrySize,
                              int retryInterval
 

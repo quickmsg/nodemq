@@ -4,7 +4,6 @@ import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
-import io.netty.handler.codec.mqtt.MqttMessageType;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import reactor.core.publisher.Flux;
 
@@ -31,7 +30,7 @@ public interface Endpoint<M> {
 
     void writeSubAck(int messageId, List<Integer> responseCode, MqttProperties properties);
 
-    void writeUnsubAck(int messageId,MqttProperties properties);
+    void writeUnsubAck(int messageId, MqttProperties properties);
 
     void writeDisconnect(byte reasonCode,MqttProperties properties);
     void writePong();

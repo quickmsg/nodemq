@@ -5,6 +5,7 @@ import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.pair.AckPair;
 import io.github.quickmsg.edge.mqtt.retry.RetryMessage;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
+import io.github.quickmsg.edge.mqtt.util.JsonReader;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
 import reactor.core.publisher.Mono;
@@ -20,17 +21,22 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processConnect(ConnectPacket packet) {
         return Mono.fromRunnable(() -> {
+
             final Endpoint<Packet> endpoint = packet.endpoint();
             boolean auth = context.getAuthenticator().auth(endpoint.getClientId(),
                     packet.connectUserDetail().username(),
                     packet.connectUserDetail().password());
             if (!auth) {
+                context().getLogger().printInfo(String.format("connect failed  %s %s  ", packet.endpoint().getClientId(),
+                        packet.endpoint().getClientIp()));
                 if (endpoint.isMqtt5()) {
                     endpoint.writeConnectAck(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USERNAME_OR_PASSWORD, packet.getMqttProperties());
                 } else {
                     endpoint.writeConnectAck(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, packet.getMqttProperties());
                 }
             } else {
+                context().getLogger().printInfo(String.format("connect success  %s %s  ", packet.endpoint().getClientId(),
+                        packet.endpoint().getClientIp()));
                 endpoint.setClientId(endpoint.getClientId());
                 endpoint.setConnected(true);
                 endpoint.onClose(() -> this.clearEndpoint(endpoint).subscribe());
@@ -59,6 +65,9 @@ public record MqttProcessor(MqttContext context) implements Processor {
     public Mono<Void> processPublish(PublishPacket packet) {
         return Mono.fromRunnable(() -> {
             final var endpoint = packet.endpoint();
+            context().getLogger().printInfo(String.format("read pub  %s %s %s %d %s ", packet.endpoint().getClientId(),
+                    packet.endpoint().getClientIp(),"qos"+packet.qos(), packet.messageId(),
+                    HexFormat.of().formatHex(packet.payload())));
             switch (packet.qos()) {
                 case 1 -> {
                     if(context.getRetryManager().checkOverLimit()){
@@ -72,18 +81,31 @@ public record MqttProcessor(MqttContext context) implements Processor {
                 }
                 case 2 -> {
                     PublishRecPacket publishRecPacket;
-                    if(endpoint.cacheQos2Message(packet)){
-                        publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
-                                (byte) 0,System.currentTimeMillis(),new AckPair(null,packet.pair().userProperty()));
+                    if(!context.getRetryManager().checkOverLimit()){
+                        AckPair ackPair = null;
+                        if(endpoint.isMqtt5()){
+                            ackPair =  new AckPair(null,packet.pair().userProperty());
+                        }
+                        if(endpoint.cacheQos2Message(packet)){
+                            publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
+                                    (byte) 0,System.currentTimeMillis(),ackPair);
+                        }
+                        else{
+                            publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
+                                    MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue(),System.currentTimeMillis(),ackPair);
+                        }
                         endpoint.writePublishRec(publishRecPacket,true);
                     }
                     else {
-                        //流量超过直接回复reason code 不在重试
+                        AckPair ackPair = null;
+                        if(endpoint.isMqtt5()){
+                            ackPair =  new AckPair(null,packet.pair().userProperty());
+                        }
                         publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
-                                MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(),System.currentTimeMillis(),new AckPair(null,packet.pair().userProperty()));
+                                MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(),System.currentTimeMillis(),ackPair);
                         endpoint.writePublishRec(publishRecPacket,false);
-                        return;
                     }
+                    return;
                 }
                 default -> {
                 }
@@ -104,8 +126,8 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     var subscribeEndpoint = channelRegistry.getEndpoint(subscribeTopic.clientId());
                     subscribeEndpoint.writeMessage(
                             new PublishPacket(subscribeEndpoint,
-                                    subscribeEndpoint.generateMessageId(), packet.topic(), packet.qos(), packet.payload(),
-                                    packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),true);
+                                    subscribeEndpoint.generateMessageId(), packet.topic(),  Math.min(packet.qos(),subscribeTopic.qos()), packet.payload(),
+                                    packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),packet.qos()> 0);
                 } else {
                     var shareSubscribeGroup = shareSubscribeTopic.computeIfAbsent(subscribeTopic.topic(),
                             topic -> new LinkedList<>());
@@ -119,7 +141,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
                                     context().getLoadBalancer().select(subscribeTopicList, packet.endpoint().getClientId());
                             var shareEndpoint = channelRegistry.getEndpoint(select.clientId());
                             shareEndpoint.writeMessage(new PublishPacket(shareEndpoint,
-                                    shareEndpoint.generateMessageId(), packet.topic(), packet.qos(), packet.payload(),
+                                    shareEndpoint.generateMessageId(), packet.topic(), Math.min(packet.qos(),select.qos()), packet.payload(),
                                     packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),true);
                         });
             }
@@ -134,8 +156,8 @@ public record MqttProcessor(MqttContext context) implements Processor {
             List<Integer> responseCodes = new ArrayList<>();
             if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
                 for (SubscribeTopic subscribeTopic : packet.subscribeTopics()) {
-                    context().getLogger().printInfo(String.format("sub  %s %s %s %d", packet.endpoint().getClientId(),
-                            packet.endpoint().getClientIp(), subscribeTopic.topic(), subscribeTopic.qos()));
+                    context().getLogger().printInfo(String.format("sub  %s %s %s %s %d", packet.endpoint().getClientId(),
+                            packet.endpoint().getClientIp(), subscribeTopic.topic(), "qos"+subscribeTopic.qos(),packet.messageId()));
                     if (subscribeTopic.share()) {
                         if (!packet.endpoint().getMqttConfig().supportShareSubscribe()) {
                             responseCodes.add((int) MqttReasonCodes.SubAck.SHARED_SUBSCRIPTIONS_NOT_SUPPORTED.byteValue());
@@ -201,16 +223,21 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublishAck(PublishAckPacket packet) {
         return Mono.fromRunnable(() -> {
-            context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(), packet.messageId()));
+            context().getLogger().printInfo(String.format("pub ack  %s %s %d ", packet.endpoint().getClientId(),
+                    packet.endpoint().getClientIp(), packet.messageId()));
+            context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(),0,
+                    packet.messageId()));
         });
     }
 
     @Override
     public Mono<Void> processPublishRel(PublishRelPacket packet) {
         return Mono.fromRunnable(() -> {
+            context().getLogger().printInfo(String.format("read pub rel  %s %s %d ", packet.endpoint().getClientId(),
+                    packet.endpoint().getClientIp(), packet.messageId()));
             var cancelRetry = context().getRetryManager()
-                    .cancelRetry(new RetryMessage(packet.endpoint().getClientId(), packet.messageId()));
-            if(cancelRetry!=null){
+                    .cancelRetry(new RetryMessage(packet.endpoint().getClientId(), 1, packet.messageId()));
+             if(cancelRetry!=null){
                 packet.endpoint().writePublishComp(new PublishCompPacket(packet.endpoint()
                         ,packet.messageId(),(byte)0,
                         packet.timestamp(),packet.ackPair()));
@@ -232,10 +259,12 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublishRec(PublishRecPacket packet) {
         return Mono.fromRunnable(() -> {
+            context().getLogger().printInfo(String.format("read pub rec  %s %s %d ", packet.endpoint().getClientId(),
+                    packet.endpoint().getClientIp(), packet.messageId()));
             var cancelRetry =
-                    context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(),
+                    context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(),0,
                             packet.messageId()));
-            byte reason = cancelRetry!=null ? (byte)0 : MqttReasonCodes.PubRel.PACKET_IDENTIFIER_NOT_FOUND.byteValue();
+            byte reason = cancelRetry!=null ? (byte)0 : MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue();
             packet.endpoint().writePublishRel( new PublishRelPacket(packet.endpoint()
                     ,packet.messageId(),reason,packet.timestamp(),packet.ackPair()),
                     true);
@@ -246,8 +275,10 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublishComp(PublishCompPacket packet) {
         return Mono.fromRunnable(() -> {
+            context().getLogger().printInfo(String.format("read pub comp  %s %s %d ", packet.endpoint().getClientId(),
+                    packet.endpoint().getClientIp(), packet.messageId()));
             context().getRetryManager().cancelRetry(
-                    new RetryMessage(packet.endpoint().getClientId(), packet.messageId()));
+                    new RetryMessage(packet.endpoint().getClientId(),0, packet.messageId()));
         });
     }
 
@@ -261,6 +292,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
         return Mono.fromRunnable(() -> {
             context().getLogger().printInfo(String.format("ping  %s %s  ", pingPacket.clientId(),
                     pingPacket.clientIp()));
+            pingPacket.endpoint().writePong();
         });
     }
 

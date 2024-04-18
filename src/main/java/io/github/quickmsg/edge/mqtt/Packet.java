@@ -7,7 +7,6 @@ import io.netty.handler.codec.mqtt.MqttProperties;
  */
 public interface Packet {
 
-
     Endpoint<Packet> endpoint();
 
 
@@ -16,6 +15,10 @@ public interface Packet {
 
     default int messageId(){
         return  0;
+    }
+
+    default int optCode() {
+        return 0;
     }
 
 }
