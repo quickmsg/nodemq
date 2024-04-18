@@ -453,7 +453,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     @SuppressWarnings("unchecked")
     private PublishPair parserPublishPair(MqttPublishMessage publishMessage) {
-        final MqttProperties publishProperties = publishMessage.variableHeader().properties();
+        var publishProperties = publishMessage.variableHeader().properties();
         byte payloadFormatIndicator = (byte) getInt(publishProperties, MqttProperties.MqttPropertyType.PAYLOAD_FORMAT_INDICATOR);
         int publicationExpiryInterval = getInt(publishProperties, MqttProperties.MqttPropertyType.PUBLICATION_EXPIRY_INTERVAL);
         int topicAlias = getInt(publishProperties, MqttProperties.MqttPropertyType.TOPIC_ALIAS);

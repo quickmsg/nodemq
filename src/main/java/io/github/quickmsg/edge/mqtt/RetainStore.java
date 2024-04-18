@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author luxurong
  */
 public class RetainStore{
-    private final Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
+    private  Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
             .expireAfter(new Expiry<String, RetainMessage>() {
                 @Override
                 public long expireAfterCreate(String key, RetainMessage value, long currentTime) {

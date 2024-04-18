@@ -86,7 +86,7 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.asyncLogger = new AsyncLogger(this.mqttConfig.log());
         return Flux.fromIterable(mqttConfig.mqtt())
                 .flatMap(mqttItem -> {
-                    final MqttAcceptor mqttAcceptor = new MqttAcceptor();
+                    var mqttAcceptor = new MqttAcceptor();
                     mqttContext.put(mqttAcceptor.id(), mqttAcceptor);
                     return mqttAcceptor.accept()
                             .contextWrite(context -> context.put(InitConfig.MqttConfig.class, mqttItem))
@@ -214,7 +214,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     }
 
     private void doPacketRetry(RetryTask<RetryMessage, Packet> retryTask) {
-        final Endpoint<Packet> endpoint = this.getChannelRegistry().getEndpoint(retryTask.getK().clientId());
+        var endpoint = this.getChannelRegistry().getEndpoint(retryTask.getK().clientId());
         if (endpoint == null || endpoint.isClosed()) {
             retryTask.cancel();
             return;

@@ -19,7 +19,7 @@ public class CustomFormatter extends Formatter {
     public String format(LogRecord record) {
         ZonedDateTime zdt = ZonedDateTime.ofInstant(
                 record.getInstant(), ZoneId.systemDefault());
-        final String format = zdt.format(formatter);
+        var format = zdt.format(formatter);
         return format+" "+record.getLongThreadID() +" [" + record.getLevel() + "] " + record.getMessage() + "\n";
     }
 }

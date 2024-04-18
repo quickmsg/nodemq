@@ -22,7 +22,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
     public Mono<Void> processConnect(ConnectPacket packet) {
         return Mono.fromRunnable(() -> {
 
-            final Endpoint<Packet> endpoint = packet.endpoint();
+            var endpoint = packet.endpoint();
             boolean auth = context.getAuthenticator().auth(endpoint.getClientId(),
                     packet.connectUserDetail().username(),
                     packet.connectUserDetail().password());
@@ -44,7 +44,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     endpoint.setCloseCode(3);
                     endpoint.close();
                 });
-                final Endpoint<Packet> oldEndpoint = context.getChannelRegistry().registry(endpoint);
+                var oldEndpoint = context.getChannelRegistry().registry(endpoint);
                 if (oldEndpoint != null) {
                     oldEndpoint.close();
                 }
@@ -64,7 +64,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublish(PublishPacket packet) {
         return Mono.fromRunnable(() -> {
-            final var endpoint = packet.endpoint();
+            var endpoint = packet.endpoint();
             context().getLogger().printInfo(String.format("read pub  %s %s %s %d %s ", packet.endpoint().getClientId(),
                     packet.endpoint().getClientIp(),"qos"+packet.qos(), packet.messageId(),
                     HexFormat.of().formatHex(packet.payload())));
@@ -321,7 +321,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             context().getLogger().printInfo(String.format("close  %s %s  ", closePacket.endpoint().getClientId(),
                     closePacket.endpoint().getClientIp()));
             context.getChannelRegistry().remove(closePacket.endpoint());
-            final List<SubscribeTopic> subscribeTopics = closePacket.endpoint().getSubscribeTopics();
+            var subscribeTopics = closePacket.endpoint().getSubscribeTopics();
             for (SubscribeTopic subscribeTopic : subscribeTopics) {
                 context.getTopicRegistry().removeTopicSubscribe(subscribeTopic.topic(), subscribeTopic);
             }
