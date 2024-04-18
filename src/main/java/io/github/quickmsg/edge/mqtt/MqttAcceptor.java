@@ -2,8 +2,15 @@ package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
+import io.github.quickmsg.edge.mqtt.proxy.HAProxyHandler;
+import io.github.quickmsg.edge.mqtt.websocket.ByteBufToWebSocketFrameEncoder;
+import io.github.quickmsg.edge.mqtt.websocket.WebSocketFrameToByteBufDecoder;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.mqtt.MqttDecoder;
 import io.netty.handler.codec.mqtt.MqttEncoder;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -53,6 +60,17 @@ public class MqttAcceptor implements EndpointAcceptor {
                         .metrics(false)
                         .runOn(LoopResources.create("NodeMQ", Runtime.getRuntime().availableProcessors(), true))
                         .doOnConnection(connection -> {
+                            if(config.proxy()){
+                                connection.addHandlerLast(new HAProxyMessageDecoder());
+                                connection.addHandlerLast(new HAProxyHandler());
+                            }
+                            if(config.useWebsocket()){
+                                connection.addHandlerLast(new HttpServerCodec())
+                                        .addHandlerLast(new HttpObjectAggregator(65536))
+                                        .addHandlerLast(new WebSocketServerProtocolHandler(config.websocketPath(), "mqtt, mqttv3.1, mqttv3.1.1"))
+                                        .addHandlerLast(new WebSocketFrameToByteBufDecoder())
+                                        .addHandlerLast(new ByteBufToWebSocketFrameEncoder());
+                            }
                             connection
                                     .addHandlerLast(MqttEncoder.INSTANCE)
                                     .addHandlerLast(new MqttDecoder(config.maxMessageSize()));

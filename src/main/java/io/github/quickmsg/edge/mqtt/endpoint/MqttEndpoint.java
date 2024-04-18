@@ -6,12 +6,14 @@ import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
+import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;
 import io.github.quickmsg.edge.mqtt.retry.RetryMessage;
 import io.github.quickmsg.edge.mqtt.retry.RetryTask;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.github.quickmsg.edge.mqtt.util.MessageUtils;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.mqtt.*;
+import io.netty.util.AttributeKey;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
@@ -34,7 +36,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private final Connection connection;
     private String clientId;
 
-    private final String clientIp;
+    private String clientIp;
 
     private MqttVersion version;
 
@@ -72,6 +74,8 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private volatile int receiveMaxMessageSize;
 
+    private ProxyMessage proxyMessage;
+
 
     private final List<SubscribeTopic> subscribeTopics;
 
@@ -88,6 +92,13 @@ public class MqttEndpoint implements Endpoint<Packet> {
         this.clientIp = connection.channel().remoteAddress().toString().split(":")[0];
         this.connectTime = System.currentTimeMillis();
         this.subscribeTopics = new ArrayList<>();
+        if(mqttConfig.proxy()){
+            AttributeKey<ProxyMessage> attributeKey = AttributeKey.valueOf("proxy");
+            this.proxyMessage = connection.channel().attr(attributeKey).get();
+            if( this.proxyMessage!=null){
+                this.clientIp =  this.proxyMessage.getSourceAddress();
+            }
+        }
         this.readIdle(this.mqttConfig.connectTimeout(), this::close);
     }
 
@@ -213,6 +224,11 @@ public class MqttEndpoint implements Endpoint<Packet> {
     }
 
     @Override
+    public ProxyMessage getProxyMessage() {
+        return this.proxyMessage;
+    }
+
+    @Override
     public int generateMessageId() {
         int index = atomicInteger.incrementAndGet();
         if (index > 65535) {
@@ -260,6 +276,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
                         connectMessage.variableHeader().keepAliveTimeSeconds(),
                         System.currentTimeMillis(),
                         connectPair,
+                        this.proxyMessage,
                         willPair);
             }
             case PUBLISH -> {

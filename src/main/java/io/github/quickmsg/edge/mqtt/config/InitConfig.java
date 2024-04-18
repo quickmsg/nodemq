@@ -11,7 +11,7 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
     public static InitConfig defaultConfig() {
         return new InitConfig(
                 List.of(new MqttConfig("0.0.0.0",1883,65535,
-                        3,false,null,false,false,
+                        3,false,null,false,"/mqtt",false,
                         2,1000,1000,
                         true,true,
                         100,10,2000)),
@@ -31,6 +31,7 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              boolean wiretap,
                              SslConfig sslConfig,
                              boolean useWebsocket,
+                             String websocketPath,
                              boolean proxy,
                              int maxQosLevel,
                              int maxSessionMessageSize,
@@ -40,6 +41,7 @@ public record InitConfig(List<MqttConfig> mqtt, SystemConfig system, LogConfig l
                              int unConfirmFlightWindowSize,
                              int retrySize,
                              int retryInterval
+
 
 
 

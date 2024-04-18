@@ -5,6 +5,7 @@ import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.endpoint.MqttEndpoint;
 import io.github.quickmsg.edge.mqtt.pair.ConnectPair;
 import io.github.quickmsg.edge.mqtt.pair.WillPair;
+import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.netty.handler.codec.mqtt.MqttVersion;
 
@@ -20,6 +21,7 @@ public record ConnectPacket(Endpoint<Packet> endpoint,
                             int keepalive,
                             long timestamp,
                             ConnectPair connectPair,
+                            ProxyMessage proxyMessage,
                             WillPair willPair) implements Packet {
 
     @Override

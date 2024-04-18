@@ -2,6 +2,7 @@ package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.packet.*;
+import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttProperties;
@@ -13,6 +14,9 @@ import java.util.List;
  * @author luxurong
  */
 public interface Endpoint<M> {
+
+
+    ProxyMessage getProxyMessage();
 
     int generateMessageId();
 
