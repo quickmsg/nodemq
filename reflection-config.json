@@ -25,6 +25,11 @@
     "allPublicMethods": true
   },
   {
+    "name": "io.github.quickmsg.edge.mqtt.config.InitConfig$HttpConfig",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "java.util.logging.Level",
     "allDeclaredConstructors": true,
     "allPublicMethods": true,

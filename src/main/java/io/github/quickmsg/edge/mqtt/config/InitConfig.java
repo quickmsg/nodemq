@@ -31,7 +31,7 @@ public record InitConfig(List<MqttConfig> mqtt,HttpConfig http, SystemConfig sys
 
     }
 
-    public record HttpConfig(Integer port,
+    public record HttpConfig(Integer port, 
                              boolean accessLog,
                              SslConfig ssl) {
 
