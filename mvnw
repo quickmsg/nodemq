@@ -32,6 +32,11 @@
 #       set MAVEN_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000
 #   MAVEN_SKIP_RC - flag to disable loading of mavenrc files
 # ----------------------------------------------------------------------------
+#HOME=/root/nodemq/graalvm-community-openjdk-21.0.2+13.1
+#GRAALVM_HOME=/root/nodemq/graalvm-community-openjdk-21.0.2+13.1
+#export PATH=$GRAALVM_HOME/bin:$PATH
+
+
 
 if [ -z "$MAVEN_SKIP_RC" ] ; then
 
