@@ -31,11 +31,11 @@ public class AsyncLogger implements Logger {
              if (logConfig.persisted()) {
                 StreamHandler handler = new FileHandler(
                         "logs/NodeMQ-%g.log", 100 * 1024 * 1024, 20, true);
-                handler.setFormatter(new CustomFormatter());
+                handler.setFormatter(new LogFormatter());
                 this.rootLogger.addHandler(handler);
             } else {
                  ConsoleHandler consoleHandler = new ConsoleHandler();
-                consoleHandler.setFormatter(new CustomFormatter());
+                consoleHandler.setFormatter(new LogFormatter());
                  this.rootLogger.addHandler(consoleHandler);
             }
 
