@@ -54,7 +54,7 @@ public class MqttContext implements Context, Consumer<Packet> {
 
     private final Scheduler scheduler;
 
-    private  RetainStore retainStore;
+    private final RetainStore retainStore;
 
 
     private LoadBalancer<SubscribeTopic> loadBalancer;
@@ -72,6 +72,11 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.authenticator = authenticator;
         this.retainStore = new RetainStore();
     }
+
+    public Scheduler getScheduler() {
+        return scheduler;
+    }
+
 
 
     @Override

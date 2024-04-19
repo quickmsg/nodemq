@@ -66,56 +66,53 @@ public record MqttProcessor(MqttContext context) implements Processor {
         return Mono.fromRunnable(() -> {
             var endpoint = packet.endpoint();
             context().getLogger().printInfo(String.format("read pub  %s %s %s %d %s ", packet.endpoint().getClientId(),
-                    packet.endpoint().getClientIp(),"qos"+packet.qos(), packet.messageId(),
+                    packet.endpoint().getClientIp(), "qos" + packet.qos(), packet.messageId(),
                     HexFormat.of().formatHex(packet.payload())));
             switch (packet.qos()) {
                 case 1 -> {
-                    if(context.getRetryManager().checkOverLimit()){
+                    if (context.getRetryManager().checkOverLimit()) {
                         endpoint.writePublishAck(packet.messageId(),
-                                MqttReasonCodes.PubAck.QUOTA_EXCEEDED.byteValue(),packet.getMqttProperties());
+                                MqttReasonCodes.PubAck.QUOTA_EXCEEDED.byteValue(), packet.getMqttProperties());
                         return;
-                    }
-                    else{
-                        endpoint.writePublishAck(packet.messageId(),(byte)0,packet.getMqttProperties());
+                    } else {
+                        endpoint.writePublishAck(packet.messageId(), (byte) 0, packet.getMqttProperties());
                     }
                 }
                 case 2 -> {
                     PublishRecPacket publishRecPacket;
-                    if(!context.getRetryManager().checkOverLimit()){
+                    if (!context.getRetryManager().checkOverLimit()) {
                         AckPair ackPair = null;
-                        if(endpoint.isMqtt5()){
-                            ackPair =  new AckPair(null,packet.pair().userProperty());
+                        if (endpoint.isMqtt5()) {
+                            ackPair = new AckPair(null, packet.pair().userProperty());
                         }
-                        if(endpoint.cacheQos2Message(packet)){
-                            publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
-                                    (byte) 0,System.currentTimeMillis(),ackPair);
+                        if (endpoint.cacheQos2Message(packet)) {
+                            publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                    (byte) 0, System.currentTimeMillis(), ackPair);
+                        } else {
+                            publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                    MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue(), System.currentTimeMillis(), ackPair);
                         }
-                        else{
-                            publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
-                                    MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue(),System.currentTimeMillis(),ackPair);
-                        }
-                        endpoint.writePublishRec(publishRecPacket,true);
-                    }
-                    else {
+                        endpoint.writePublishRec(publishRecPacket, true);
+                    } else {
                         AckPair ackPair = null;
-                        if(endpoint.isMqtt5()){
-                            ackPair =  new AckPair(null,packet.pair().userProperty());
+                        if (endpoint.isMqtt5()) {
+                            ackPair = new AckPair(null, packet.pair().userProperty());
                         }
-                        publishRecPacket = new PublishRecPacket(packet.endpoint(),packet.messageId(),
-                                MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(),System.currentTimeMillis(),ackPair);
-                        endpoint.writePublishRec(publishRecPacket,false);
+                        publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(), System.currentTimeMillis(), ackPair);
+                        endpoint.writePublishRec(publishRecPacket, false);
                     }
                     return;
                 }
                 default -> {
                 }
             }
-            if(packet.payload().length == 0){
+            if (packet.payload().length == 0) {
                 context.getRetainStore().del(packet.topic());
             }
-            if(packet.retain()){
+            if (packet.retain()) {
                 context.getRetainStore().add(packet.topic(),
-                        new RetainMessage(context.getMqttConfig().system().maxRetainExpiryInterval(),
+                        new RetainMessage(System.currentTimeMillis(), context.getMqttConfig().system().maxRetainExpiryInterval(),
                                 packet.endpoint().getClientId(),
                                 packet.endpoint().getClientId(),
                                 packet.messageId(),
@@ -127,14 +124,14 @@ public record MqttProcessor(MqttContext context) implements Processor {
                                 packet.retry(),
                                 packet.timestamp(),
                                 packet.pair()
-                                ));
+                        ));
             }
             this.sendMessage(packet);
         });
 
     }
 
-    private void sendMessage(PublishPacket packet){
+    private void sendMessage(PublishPacket packet) {
         var topicRegistry = context.getTopicRegistry();
         var channelRegistry = context.getChannelRegistry();
         var subscribeTopics = topicRegistry.searchTopicSubscribe(packet.topic());
@@ -145,23 +142,23 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     var subscribeEndpoint = channelRegistry.getEndpoint(subscribeTopic.clientId());
                     subscribeEndpoint.writeMessage(
                             new PublishPacket(subscribeEndpoint,
-                                    subscribeEndpoint.generateMessageId(), packet.topic(),  Math.min(packet.qos(),subscribeTopic.qos()), packet.payload(),
-                                    packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),packet.qos()> 0);
+                                    subscribeEndpoint.generateMessageId(), packet.topic(), Math.min(packet.qos(), subscribeTopic.qos()), packet.payload(),
+                                    packet.retain(), false, packet.retry(), System.currentTimeMillis(), packet.pair()), packet.retry());
                 } else {
                     var shareSubscribeGroup = shareSubscribeTopic.computeIfAbsent(subscribeTopic.topic(),
                             topic -> new LinkedList<>());
                     shareSubscribeGroup.add(subscribeTopic);
                 }
             }
-            if(!shareSubscribeTopic.isEmpty()){
+            if (!shareSubscribeTopic.isEmpty()) {
                 shareSubscribeTopic.values()
-                        .forEach(subscribeTopicList->{
+                        .forEach(subscribeTopicList -> {
                             var select =
                                     context().getLoadBalancer().select(subscribeTopicList, packet.endpoint().getClientId());
                             var shareEndpoint = channelRegistry.getEndpoint(select.clientId());
                             shareEndpoint.writeMessage(new PublishPacket(shareEndpoint,
-                                    shareEndpoint.generateMessageId(), "$share/"+packet.topic(), Math.min(packet.qos(),select.qos()), packet.payload(),
-                                    packet.retain(),false,true,System.currentTimeMillis(),packet.pair()),true);
+                                    shareEndpoint.generateMessageId(), "$share/" + packet.topic(), Math.min(packet.qos(), select.qos()), packet.payload(),
+                                    packet.retain(), false, packet.retry(), System.currentTimeMillis(), packet.pair()), packet.retry());
                         });
             }
 
@@ -176,7 +173,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
                 for (SubscribeTopic subscribeTopic : packet.subscribeTopics()) {
                     context().getLogger().printInfo(String.format("read sub  %s %s %s %s %d", packet.endpoint().getClientId(),
-                            packet.endpoint().getClientIp(), subscribeTopic.topic(), "qos"+subscribeTopic.qos(),packet.messageId()));
+                            packet.endpoint().getClientIp(), subscribeTopic.topic(), "qos" + subscribeTopic.qos(), packet.messageId()));
                     if (subscribeTopic.share()) {
                         if (!packet.endpoint().getMqttConfig().supportShareSubscribe()) {
                             responseCodes.add((int) MqttReasonCodes.SubAck.SHARED_SUBSCRIPTIONS_NOT_SUPPORTED.byteValue());
@@ -196,6 +193,17 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     }
                     if (context().getTopicRegistry()
                             .addTopicSubscribe(subscribeTopic.topic(), subscribeTopic)) {
+                        var retainStore = context().getRetainStore();
+                        retainStore.get(subscribeTopic.topic())
+                                .ifPresent(retainMessage -> {
+                                    if ((retainMessage.getExpireTime() + retainMessage.getCreateTime()) > System.currentTimeMillis()) {
+                                        retainStore.del(retainMessage.getTopic());
+                                    } else {
+                                        var ps = retainMessage.toPacket();
+                                        packet.endpoint()
+                                                .writeMessage(ps, ps.retry());
+                                    }
+                                });
                         responseCodes.add(subscribeTopic.qos());
                     } else {
                         responseCodes.add((int) MqttReasonCodes.SubAck.PACKET_IDENTIFIER_IN_USE.byteValue());
@@ -244,7 +252,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
         return Mono.fromRunnable(() -> {
             context().getLogger().printInfo(String.format("pub ack  %s %s %d ", packet.endpoint().getClientId(),
                     packet.endpoint().getClientIp(), packet.messageId()));
-            context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(),0,
+            context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(), 0,
                     packet.messageId()));
         });
     }
@@ -256,19 +264,18 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     packet.endpoint().getClientIp(), packet.messageId()));
             var cancelRetry = context().getRetryManager()
                     .cancelRetry(new RetryMessage(packet.endpoint().getClientId(), 1, packet.messageId()));
-             if(cancelRetry!=null){
+            if (cancelRetry != null) {
                 packet.endpoint().writePublishComp(new PublishCompPacket(packet.endpoint()
-                        ,packet.messageId(),(byte)0,
-                        packet.timestamp(),packet.ackPair()));
+                        , packet.messageId(), (byte) 0,
+                        packet.timestamp(), packet.ackPair()));
                 var publishPacket = packet.endpoint().removeQos2Message(packet.messageId());
-                if(publishPacket!=null){
+                if (publishPacket != null) {
                     this.sendMessage(publishPacket);
                 }
-            }
-            else{
+            } else {
                 packet.endpoint().writePublishComp(new PublishCompPacket(packet.endpoint()
-                        ,packet.messageId(),MqttReasonCodes.PubRel.PACKET_IDENTIFIER_NOT_FOUND.byteValue(),
-                        packet.timestamp(),packet.ackPair()));
+                        , packet.messageId(), MqttReasonCodes.PubRel.PACKET_IDENTIFIER_NOT_FOUND.byteValue(),
+                        packet.timestamp(), packet.ackPair()));
             }
 
         });
@@ -281,11 +288,11 @@ public record MqttProcessor(MqttContext context) implements Processor {
             context().getLogger().printInfo(String.format("read pub rec  %s %s %d ", packet.endpoint().getClientId(),
                     packet.endpoint().getClientIp(), packet.messageId()));
             var cancelRetry =
-                    context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(),0,
+                    context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(), 0,
                             packet.messageId()));
-            byte reason = cancelRetry!=null ? (byte)0 : MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue();
-            packet.endpoint().writePublishRel( new PublishRelPacket(packet.endpoint()
-                    ,packet.messageId(),reason,packet.timestamp(),packet.ackPair()),
+            byte reason = cancelRetry != null ? (byte) 0 : MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue();
+            packet.endpoint().writePublishRel(new PublishRelPacket(packet.endpoint()
+                            , packet.messageId(), reason, packet.timestamp(), packet.ackPair()),
                     true);
 
         });
@@ -297,7 +304,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             context().getLogger().printInfo(String.format("read pub comp  %s %s %d ", packet.endpoint().getClientId(),
                     packet.endpoint().getClientIp(), packet.messageId()));
             context().getRetryManager().cancelRetry(
-                    new RetryMessage(packet.endpoint().getClientId(),0, packet.messageId()));
+                    new RetryMessage(packet.endpoint().getClientId(), 0, packet.messageId()));
         });
     }
 

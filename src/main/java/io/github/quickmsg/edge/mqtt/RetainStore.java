@@ -1,56 +1,43 @@
 package io.github.quickmsg.edge.mqtt;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Expiry;
+import com.github.benmanes.caffeine.cache.*;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
 import io.github.quickmsg.edge.mqtt.msg.RetainMessage;
+import io.github.quickmsg.edge.mqtt.topic.TopicTreeNode;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author luxurong
  */
 public class RetainStore{
-    private final Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
-            .expireAfter(new Expiry<String, RetainMessage>() {
-                @Override
-                public long expireAfterCreate(String key, RetainMessage value, long currentTime) {
-                    return currentTime+ TimeUnit.SECONDS.toNanos(value.expireTime());
-                }
-
-                @Override
-                public long expireAfterUpdate(String key, RetainMessage value, long currentTime, @NonNegative long currentDuration) {
-                    return 0;
-                }
-
-                @Override
-                public long expireAfterRead(String key, RetainMessage value, long currentTime, @NonNegative long currentDuration) {
-                    return 0;
-                }
-            })
-            .build();
-
-
+    private final TopicTreeNode<RetainMessage> topicTreeNode
+            = new TopicTreeNode<>(new CopyOnWriteArraySet<>(),"root");
 
     public RetainStore() {
 
     }
 
     public void add(String topic,RetainMessage retainMessage){
-        cacheMap.put(topic,retainMessage);
+        topicTreeNode.removeObjectTopic(topic,retainMessage);
+        topicTreeNode.addObjectTopic(topic,retainMessage);
     }
 
     public  void del(String topic){
-        cacheMap.invalidate(topic);
+        topicTreeNode.addObjectTopic(topic,new RetainMessage(topic));
     }
 
-    public RetainMessage get(String topic){
-        return  cacheMap.getIfPresent(topic);
+    public Optional<RetainMessage> get(String topic){
+        var objects=  topicTreeNode.getObjectsByTopic(topic);
+        return  objects.stream().findFirst();
     }
 
 
