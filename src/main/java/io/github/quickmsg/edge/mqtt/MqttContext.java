@@ -76,7 +76,6 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.mqttConfig = readConfig();
         if (this.mqttConfig == null) {
             this.mqttConfig = InitConfig.defaultConfig();
-            System.out.println(JsonReader.bean2Json(mqttConfig));
         }
         this.loadBalancer = switch (mqttConfig.system().shareStrategy()) {
             case HASH -> new HashLoadBalancer<>();
