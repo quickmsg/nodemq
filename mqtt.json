@@ -1,24 +1,49 @@
 {
-  "mqtt": [{
-    "host": "0.0.0.0",
-    "port": 1883,
-    "maxMessageSize": 65535,
-    "connectTimeout": 3,
-    "wiretap": false,
-    "sslConfig": null,
-    "useWebsocket": false,
-    "proxy": false,
-    "maxQosLevel": 2,
+  "mqtt": [
+    {
+      "host": "0.0.0.0",
+      "port": 1883,
+      "maxMessageSize": 65535,
+      "connectTimeout": 3,
+      "wiretap": false,
+      "ssl": null,
+      "useWebsocket": false,
+      "websocketPath": "/mqtt",
+      "proxy": false,
+      "maxQosLevel": 2,
+      "supportWildcardSubscribe": true,
+      "supportShareSubscribe": true,
+      "retrySize": 10,
+      "retryInterval": 2000
+    },
+    {
+      "host": "0.0.0.0",
+      "port": 8883,
+      "maxMessageSize": 65535,
+      "connectTimeout": 3,
+      "wiretap": false,
+      "ssl": null,
+      "useWebsocket": true,
+      "websocketPath": "/mqtt",
+      "proxy": false,
+      "maxQosLevel": 2,
+      "supportWildcardSubscribe": true,
+      "supportShareSubscribe": true,
+      "retrySize": 10,
+      "retryInterval": 2000
+    }
+  ],
+  "http": {
+    "port": 8080,
+    "accessLog": false,
+    "ssl": null
+  },
+  "system": {
+    "shareStrategy": "RANDOM",
     "maxSessionMessageSize": 1000,
     "maxRetainMessageSize": 1000,
-    "supportWildcardSubscribe": true,
-    "supportShareSubscribe": true,
-    "unConfirmFlightWindowSize": 100,
-    "retrySize": 10,
-    "retryInterval": 2000
-  }],
-  "system": {
-    "shareStrategy": "RANDOM"
+    "maxRetainExpiryInterval": 604800,
+    "unConfirmFlightWindowSize": 100
   },
   "log": {
     "level": "INFO",

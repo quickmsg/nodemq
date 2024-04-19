@@ -81,19 +81,38 @@ public class MqttAcceptor implements EndpointAcceptor {
                         .bind()
                         .doOnSuccess(disposableServer -> {
                             this.disposableServer = disposableServer;
+
                             mqttContext.getLogger().printInfo(
-                                    String.format("mqtt start success host：%s port: %d", config.host(), config.port())
+                                    String.format("%s start success host：%s port: %d",getProtocolDesc(config), config.host(), config.port())
                             );
                         })
                         .doOnError(throwable -> {
                             mqttContext.getLogger().printError(
-                                    String.format("mqtt start error host：%s port: %d", config.host(), config.port()),throwable
+                                    String.format("%s start error host：%s port: %d",getProtocolDesc(config), config.host(), config.port()),throwable
                             );
                         })
                         .subscribe();
             });
         });
 
+    }
+
+
+    private String getProtocolDesc(InitConfig.MqttConfig config){
+        String protocolName = "mqtt ";
+        if(config.useWebsocket()){
+            if(config.ssl()!=null){
+                protocolName = "wss  ";
+            }
+            else{
+                protocolName = "ws   ";
+            }
+        }else {
+            if(config.ssl()!=null){
+                protocolName = "mqtts";
+            }
+        }
+        return protocolName;
     }
 
     @Override

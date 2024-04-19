@@ -85,6 +85,7 @@ public class MqttContext implements Context, Consumer<Packet> {
                 mqttConfig.system().unConfirmFlightWindowSize(),
                 this::doPacketRetry);
         this.asyncLogger = new AsyncLogger(this.mqttConfig.log());
+//        this.asyncLogger.printInfo(JsonReader.bean2Json(mqttConfig));
         return Flux.fromIterable(mqttConfig.mqtt())
                 .flatMap(mqttItem -> {
                     var mqttAcceptor = new MqttAcceptor();
