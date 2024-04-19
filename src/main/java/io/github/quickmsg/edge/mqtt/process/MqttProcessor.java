@@ -175,7 +175,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             List<Integer> responseCodes = new ArrayList<>();
             if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
                 for (SubscribeTopic subscribeTopic : packet.subscribeTopics()) {
-                    context().getLogger().printInfo(String.format("sub  %s %s %s %s %d", packet.endpoint().getClientId(),
+                    context().getLogger().printInfo(String.format("read sub  %s %s %s %s %d", packet.endpoint().getClientId(),
                             packet.endpoint().getClientIp(), subscribeTopic.topic(), "qos"+subscribeTopic.qos(),packet.messageId()));
                     if (subscribeTopic.share()) {
                         if (!packet.endpoint().getMqttConfig().supportShareSubscribe()) {
@@ -216,7 +216,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
                 for (Map.Entry<String, Boolean> topicEntry : subscribeTopics.entrySet()) {
                     var clientId = packet.endpoint().getClientId();
-                    context().getLogger().printInfo(String.format("unsub  %s %s %s ", clientId,
+                    context().getLogger().printInfo(String.format("read unsub  %s %s %s ", clientId,
                             packet.endpoint().getClientIp(), topicEntry.getValue() ?
                                     "$share/" + topicEntry.getKey() : topicEntry.getKey()));
                     context().getTopicRegistry()
@@ -233,7 +233,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processDisconnect(DisconnectPacket packet) {
         return Mono.fromRunnable(() -> {
-            context().getLogger().printInfo(String.format("disconnect  %s %s ", packet.clientId(),
+            context().getLogger().printInfo(String.format("read disconnect  %s %s ", packet.clientId(),
                     packet.clientIp()));
             packet.endpoint().close();
         });
@@ -309,7 +309,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPing(PingPacket pingPacket) {
         return Mono.fromRunnable(() -> {
-            context().getLogger().printInfo(String.format("ping  %s %s  ", pingPacket.clientId(),
+            context().getLogger().printInfo(String.format("read ping  %s %s  ", pingPacket.clientId(),
                     pingPacket.clientIp()));
             pingPacket.endpoint().writePong();
         });
