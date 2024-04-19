@@ -30,6 +30,11 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.github.benmanes.caffeine.cache.SSA",
+    "allDeclaredConstructors": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "java.util.logging.Level",
     "allDeclaredConstructors": true,
     "allPublicMethods": true,
