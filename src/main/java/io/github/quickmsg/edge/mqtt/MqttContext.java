@@ -116,7 +116,8 @@ public class MqttContext implements Context, Consumer<Packet> {
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
             String line = "";
             while ((line = br.readLine()) != null) {
-                asyncLogger.printInfo(line);
+//                System.out.println(line);
+                asyncLogger.printInfoSync(line);
             }
         } catch (Exception e) {
         }

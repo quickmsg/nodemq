@@ -53,6 +53,11 @@ public class AsyncLogger implements Logger {
     }
 
     @Override
+    public void printInfoSync(String message) {
+        this.rootLogger.log(Level.INFO, message);
+    }
+
+    @Override
     public void printError(String message, Throwable throwable) {
         executorService.execute(() -> {
             this.rootLogger.log(Level.SEVERE, message, throwable);
