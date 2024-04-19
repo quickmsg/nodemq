@@ -43,7 +43,7 @@ public class MqttContext implements Context, Consumer<Packet> {
     private final Authenticator authenticator;
 
 
-    private final RetryManager<RetryMessage, Packet> retryManager;
+    private RetryManager<RetryMessage, Packet> retryManager;
 
     private AsyncLogger asyncLogger;
 
@@ -64,7 +64,6 @@ public class MqttContext implements Context, Consumer<Packet> {
     public MqttContext(EndpointRegistry endpointRegistry, TopicRegistry topicRegistry, Authenticator authenticator) {
         this.scheduler = Schedulers.newParallel("event", Runtime.getRuntime().availableProcessors());
         this.endpointRegistry = endpointRegistry;
-        this.retryManager = new TimeAckManager<>(1000, TimeUnit.SECONDS, 2048, 100, this::doPacketRetry);
         this.topicRegistry = topicRegistry;
         this.mqttProcessor = new MqttProcessor(this);
         this.authenticator = authenticator;
@@ -83,6 +82,9 @@ public class MqttContext implements Context, Consumer<Packet> {
             case HASH -> new HashLoadBalancer<>();
             case RANDOM -> new RandomLoadBalancer<>();
         };
+        this.retryManager = new TimeAckManager<>(1000, TimeUnit.SECONDS, 2048,
+                mqttConfig.system().unConfirmFlightWindowSize(),
+                this::doPacketRetry);
         this.asyncLogger = new AsyncLogger(this.mqttConfig.log());
         return Flux.fromIterable(mqttConfig.mqtt())
                 .flatMap(mqttItem -> {

@@ -48,7 +48,7 @@ public class MqttAcceptor implements EndpointAcceptor {
         return Flux.deferContextual(contextView -> {
             var config = contextView.get(InitConfig.MqttConfig.class);
             var mqttContext = contextView.get(MqttContext.class);
-            var tcpServer = config.sslConfig() != null ? ssl(config.sslConfig()) : TcpServer.create();
+            var tcpServer = config.ssl() != null ? ssl(config.ssl()) : TcpServer.create();
             return Flux.create(contextFluxSink -> {
                 tcpServer.port(config.port())
                         .wiretap(false)
@@ -71,6 +71,7 @@ public class MqttAcceptor implements EndpointAcceptor {
                                         .addHandlerLast(new WebSocketFrameToByteBufDecoder())
                                         .addHandlerLast(new ByteBufToWebSocketFrameEncoder());
                             }
+
                             connection
                                     .addHandlerLast(MqttEncoder.INSTANCE)
                                     .addHandlerLast(new MqttDecoder(config.maxMessageSize()));

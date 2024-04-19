@@ -10,16 +10,17 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author luxurong
  */
 public class RetainStore{
-    private  Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
+    private final Cache<String, RetainMessage> cacheMap = Caffeine.newBuilder()
             .expireAfter(new Expiry<String, RetainMessage>() {
                 @Override
                 public long expireAfterCreate(String key, RetainMessage value, long currentTime) {
-                    return currentTime+value.expireTime();
+                    return currentTime+ TimeUnit.SECONDS.toNanos(value.expireTime());
                 }
 
                 @Override

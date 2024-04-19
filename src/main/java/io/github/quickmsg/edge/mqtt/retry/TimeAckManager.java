@@ -37,6 +37,7 @@ public class TimeAckManager<K,M> extends HashedWheelTimer implements RetryManage
         if(retryMap.size() < maxUnConfirmMessageSize){
             retryTask.setTimeout(this.newTimeout(retryTask,retryTask.getRetryPeriod(),TimeUnit.SECONDS));
             retryMap.put(retryTask.getK()  ,retryTask);
+            System.out.println(JsonReader.bean2Json(retryMap));
             return true;
         }
         return false;
