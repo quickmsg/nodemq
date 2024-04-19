@@ -62,6 +62,21 @@ public class JsonReader {
         }
     }
 
+    public static String bean2PrettyJson(Object data) {
+        try {
+            if (data instanceof String s) {
+                return s;
+            } else {
+
+                return  mapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
+
+            }
+        } catch (JsonProcessingException e) {
+            return "";
+        }
+    }
+
+
 
     public static Map<String, Object> bean2Map(Object data) {
         try {

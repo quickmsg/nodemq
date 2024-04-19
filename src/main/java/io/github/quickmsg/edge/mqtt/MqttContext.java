@@ -8,7 +8,6 @@ import io.github.quickmsg.edge.mqtt.loadbalance.HashLoadBalancer;
 import io.github.quickmsg.edge.mqtt.loadbalance.LoadBalancer;
 import io.github.quickmsg.edge.mqtt.loadbalance.RandomLoadBalancer;
 import io.github.quickmsg.edge.mqtt.log.AsyncLogger;
-import io.github.quickmsg.edge.mqtt.msg.RetainMessage;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.process.MqttProcessor;
 import io.github.quickmsg.edge.mqtt.retry.RetryManager;
@@ -25,6 +24,11 @@ import reactor.core.scheduler.Schedulers;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -73,10 +77,6 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.retainStore = new RetainStore();
     }
 
-    public Scheduler getScheduler() {
-        return scheduler;
-    }
-
 
 
     @Override
@@ -84,6 +84,7 @@ public class MqttContext implements Context, Consumer<Packet> {
         this.mqttConfig = readConfig();
         if (this.mqttConfig == null) {
             this.mqttConfig = InitConfig.defaultConfig();
+            this.generateJson(mqttConfig);
         }
         this.loadBalancer = switch (mqttConfig.system().shareStrategy()) {
             case HASH -> new HashLoadBalancer<>();
@@ -111,15 +112,26 @@ public class MqttContext implements Context, Consumer<Packet> {
                 });
     }
 
+    private void generateJson(InitConfig mqttConfig) {
+        // 使用 NIO 写入文件
+        Path path = Paths.get("mqtt.json");
+        try {
+            // 使用 Files.write() 方法写入文件，如果文件不存在则会创建，如果文件已存在则会覆盖
+            Files.writeString(path, JsonReader.bean2PrettyJson(mqttConfig)
+                    , StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        }catch (Exception e){
+            // ignore
+        }
+    }
+
     private void printBanner(AsyncLogger asyncLogger) {
         try (InputStream is = NodeStarter.class.getResourceAsStream("/banner.txt")) {
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
-            String line = "";
+            String line;
             while ((line = br.readLine()) != null) {
-//                System.out.println(line);
                 asyncLogger.printInfoSync(line);
             }
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
     }
 
@@ -246,13 +258,8 @@ public class MqttContext implements Context, Consumer<Packet> {
             case PublishPacket publishPacket -> {
                 endpoint.writeMessage(publishPacket,false);
             }
-            case PublishRecPacket publishRecPacket -> {
-                endpoint.writePublishRec(publishRecPacket,false);
-
-            }
-            case PublishRelPacket publishRelPacket -> {
-                endpoint.writePublishRel(publishRelPacket,false);
-            }
+            case PublishRecPacket publishRecPacket -> endpoint.writePublishRec(publishRecPacket,false);
+            case PublishRelPacket publishRelPacket -> endpoint.writePublishRel(publishRelPacket,false);
             case null, default -> {
             }
         }
