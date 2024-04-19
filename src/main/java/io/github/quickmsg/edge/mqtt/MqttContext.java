@@ -22,6 +22,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -85,6 +88,7 @@ public class MqttContext implements Context, Consumer<Packet> {
                 mqttConfig.system().unConfirmFlightWindowSize(),
                 this::doPacketRetry);
         this.asyncLogger = new AsyncLogger(this.mqttConfig.log());
+        this.printBanner(this.asyncLogger);
 //        this.asyncLogger.printInfo(JsonReader.bean2Json(mqttConfig));
         return Flux.fromIterable(mqttConfig.mqtt())
                 .flatMap(mqttItem -> {
@@ -100,6 +104,17 @@ public class MqttContext implements Context, Consumer<Packet> {
                 .onErrorContinue((throwable, o) -> {
                     this.asyncLogger.printError("mqtt accept error", throwable);
                 });
+    }
+
+    private void printBanner(AsyncLogger asyncLogger) {
+        try (InputStream is = NodeStarter.class.getResourceAsStream("/banner.txt")) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+            String line = "";
+            while ((line = br.readLine()) != null) {
+                asyncLogger.printInfo(line);
+            }
+        } catch (Exception e) {
+        }
     }
 
     @Override
