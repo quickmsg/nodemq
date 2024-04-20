@@ -1,24 +1,24 @@
 # NodeMQ An ultra-lightweight, high-performance edge MQTT message proxy server
-[English](README-CN.md). [English](README.md)
+[English](README.md). [中文简体](README-CN.md)
 
 > This project is a bold experimental project to build a straight-line binary based on GraalVM (no JDK installation required). Project startup memory only 20MB, millimeter-level startup speed, let your server idle!
 
 ## Function
 - [Standard MQTT protocol](#internationalization)
-  - [MQTT 3](#Official website)
-  - [MQTT 3.1.1](#official website)
-  - [MQTT 5]( Official website)
-- [Websocket protocol](#Content directory)
-- [TLS/SSL encryption](#Content directory)
-- [Proxy protocol](#Content directory)
-- [Service level](#Project introduction)
-  - [qos0 at most once](#Official website)
-  - [qos1 at least once](#Official website)
-  - [qos2 Only once](#Official website)
-- [Topic filtering](#graphic presentation)
-  - [# multi-level matching](#official website)
-  - [+ Level 1 match](#Official website)
-- [Publish subscribe](#Graphic presentation)
+  - [MQTT 3](#Officialwebsite)
+  - [MQTT 3.1.1](#official)
+  - [MQTT 5](#Official)
+- [Websocket protocol](#Content)
+- [TLS/SSL encryption](#Content)
+- [Proxy protocol](#Content)
+- [Service level](#Project)
+  - [qos0 at most once](#Official)
+  - [qos1 at least once](#Official)
+  - [qos2 Only once](#Official)
+- [Topic filtering](#graphic)
+  - [# multi-level matching](#official)
+  - [+ Level 1 match](#Official)
+- [Publish subscribe](#Graphic)
 - [Share subscription](#function)
 - [Retain message](#function)
 - [Will message](#function)
@@ -33,9 +33,9 @@
 ### Binary download
 
 | system | download |
-|-------------|---------------------------------------------------------|
-| | Windows binaries (https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html) |
-| Linux - amd64 | binary file] [| (https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html)
+|------------|---------------------------------------------------------|
+|  Windows  |  [binary file](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html) |
+| Linux-amd64 |  [binary file](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html)|
 
 Currently we offer the Windows platform as well as Linux-X86 runnable binaries
 
@@ -96,11 +96,11 @@ Finished generating 'NodeMQ' in 3m 7s.
 [INFO] ------------------------------------------------------------------------
 ```
 
-After packaging is complete, the executable NodeMQ is generated in the target directory, and the service is run by running './NodeMQ '
+After packaging is complete, the executable NodeMQ is generated in the target directory, and the service is run by running `./NodeMQ`
 
 ## Configuration details
 
-After running the project, a 'mqtt.json' file is generated in the run directory (if there is a readable mqtt.json file), as follows:
+After running the project, a `mqtt.json` file is generated in the run directory (if there is a readable mqtt.json file), as follows:
 
 ```json
 {
