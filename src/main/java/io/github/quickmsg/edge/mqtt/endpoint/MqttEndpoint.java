@@ -4,6 +4,7 @@ import io.github.quickmsg.edge.mqtt.Endpoint;
 import io.github.quickmsg.edge.mqtt.MqttContext;
 import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
+import io.github.quickmsg.edge.mqtt.msg.WillMessage;
 import io.github.quickmsg.edge.mqtt.pair.*;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;
@@ -34,6 +35,17 @@ public class MqttEndpoint implements Endpoint<Packet> {
     private static final Pattern SHARE_MESSAGE_PATTERN = Pattern.compile("\\$share/(.*)");
 
     private final Connection connection;
+
+    @Override
+    public WillMessage getWillMessage() {
+        return willMessage;
+    }
+    @Override
+    public void setWillMessage(WillMessage willMessage) {
+        this.willMessage = willMessage;
+    }
+
+    private WillMessage willMessage;
     private String clientId;
 
     private String clientIp;
@@ -44,12 +56,13 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
     private MqttProperties willProperties;
 
-
-    private volatile boolean connected;
-
     private final long connectTime;
 
-    private volatile boolean closed;
+
+
+    private volatile boolean connected = false;
+
+    private volatile boolean closed = true;
 
     private volatile boolean keepSession;
 
@@ -102,6 +115,10 @@ public class MqttEndpoint implements Endpoint<Packet> {
         this.readIdle(this.mqttConfig.connectTimeout(), this::close);
     }
 
+    public boolean isConnected() {
+        return connected;
+    }
+
     public int getCloseCode() {
         return closeCode;
     }
@@ -127,9 +144,7 @@ public class MqttEndpoint implements Endpoint<Packet> {
         return subscribeTopics;
     }
 
-    public void setConnected(boolean connected) {
-        this.connected = connected;
-    }
+
 
 
     @Override
@@ -149,6 +164,15 @@ public class MqttEndpoint implements Endpoint<Packet> {
     @Override
     public boolean connected() {
         return this.connected;
+    }
+
+    public void setConnected(boolean connected) {
+        this.connected = connected;
+    }
+
+    @Override
+    public boolean isWriteable() {
+        return connection.channel().isWritable();
     }
 
     @Override
@@ -256,9 +280,9 @@ public class MqttEndpoint implements Endpoint<Packet> {
                             connectMessage.payload().passwordInBytes());
                 }
                 this.version = MqttVersion.fromProtocolNameAndLevel(connectMessage.variableHeader().name(), (byte) connectMessage.variableHeader().version());
-                ConnectPacket.ConnectWillMessage willMessage = null;
+                WillMessage willMessage = null;
                 if (connectMessage.variableHeader().isWillFlag()) {
-                    willMessage = new ConnectPacket.ConnectWillMessage(connectMessage.variableHeader().isWillRetain(),
+                    willMessage = new WillMessage(connectMessage.variableHeader().isWillRetain(),
                             connectMessage.payload().willTopic(), connectMessage.variableHeader().willQos()
                             , connectMessage.payload().willMessageInBytes());
                 }
@@ -302,14 +326,14 @@ public class MqttEndpoint implements Endpoint<Packet> {
                 yield new PublishRecPacket(this,
                         ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
                         ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode()
-                        , System.currentTimeMillis(), ackPair);
+                        , System.currentTimeMillis(), false, true, ackPair);
             }
             case PUBREL -> {
                 var ackPair = this.isMqtt5() ? this.parserAckPair(mqttMessage) : null;
                 yield new PublishRelPacket(this,
                         ((MqttMessageIdVariableHeader) mqttMessage.variableHeader()).messageId(),
                         ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader()).reasonCode(),
-                        System.currentTimeMillis(), ackPair);
+                        System.currentTimeMillis(), false, true,ackPair);
             }
 
             case PUBCOMP -> {
@@ -486,34 +510,36 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     @Override
-    public void writeMessage(PublishPacket publishPacket, boolean retry) {
+    public void writeMessage(PublishPacket publishPacket) {
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBLISH, false,
-                MqttQoS.valueOf(publishPacket.qos()), publishPacket.retain(), 0);
+                MqttQoS.valueOf(publishPacket.getQos()), publishPacket.isRetain(), 0);
         MqttPublishVariableHeader variableHeader;
         if (properties != null)
-            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(), publishPacket.messageId(),
+            variableHeader = new MqttPublishVariableHeader(publishPacket.getTopic(), publishPacket.messageId(),
                     publishPacket.getMqttProperties());
         else
-            variableHeader = new MqttPublishVariableHeader(publishPacket.topic(), publishPacket.messageId());
+            variableHeader = new MqttPublishVariableHeader(publishPacket.getTopic(), publishPacket.messageId());
 
         connection.outbound()
                 .sendObject(Mono.just(new MqttPublishMessage(mqttFixedHeader, variableHeader,
-                        PooledByteBufAllocator.DEFAULT.directBuffer().writeBytes(publishPacket.payload())))
+                        PooledByteBufAllocator.DEFAULT.directBuffer().writeBytes(publishPacket.getPayload())))
                 )
                 .then()
                 .doOnSuccess(VOID -> {
                     mqttContext.getLogger().printInfo(String.format("write pub success  %s %s %s %d %s ",
                             publishPacket.endpoint().getClientId(),
-                            publishPacket.endpoint().getClientIp(), "qos" + publishPacket.qos(), publishPacket.messageId(),
-                            HexFormat.of().formatHex(publishPacket.payload())));
+                            publishPacket.endpoint().getClientIp(), "qos" + publishPacket.getQos(), publishPacket.messageId(),
+                            HexFormat.of().formatHex(publishPacket.getPayload())));
                 })
                 .doOnError(throwable -> {
                     mqttContext.getLogger().printError(String.format("write error success  %s  %s  %s %d %s", publishPacket.endpoint().getClientId(),
-                            publishPacket.endpoint().getClientIp(), "qos" + publishPacket.qos(), publishPacket.messageId(),
-                            HexFormat.of().formatHex(publishPacket.payload())), throwable);
+                            publishPacket.endpoint().getClientIp(), "qos" + publishPacket.getQos(), publishPacket.messageId(),
+                            HexFormat.of().formatHex(publishPacket.getPayload())), throwable);
                 })
                 .subscribe();
-        if (retry) {
+        if (publishPacket.isRetry()) {
+            publishPacket.setRetry(false);
+            publishPacket.setDup(true);
             this.doRetry(publishPacket);
         }
     }
@@ -549,35 +575,39 @@ public class MqttEndpoint implements Endpoint<Packet> {
 
 
     @Override
-    public void writePublishRec(PublishRecPacket publishRecPacket, boolean retry) {
+    public void writePublishRec(PublishRecPacket publishRecPacket) {
         mqttContext.getLogger().printInfo(String.format("write pub rec success  %s %s %d ",
                 this.getClientId(),
                 this.getClientIp(), publishRecPacket.messageId()));
         MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRecPacket.messageId(),
-                publishRecPacket.reason(), publishRecPacket.getMqttProperties());
+                publishRecPacket.getReason(), publishRecPacket.getMqttProperties());
         connection.outbound()
                 .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
                 .then()
                 .subscribe();
-        if (retry) {
+        if (publishRecPacket.isRetry()) {
+            publishRecPacket.setRetry(false);
+            publishRecPacket.setDup(true);
             this.doRetry(publishRecPacket);
         }
     }
 
     @Override
-    public void writePublishRel(PublishRelPacket publishRelPacket, boolean retry) {
+    public void writePublishRel(PublishRelPacket publishRelPacket) {
         mqttContext.getLogger().printInfo(String.format("write pub rel success  %s %s %d ",
                 this.getClientId(),
                 this.getClientIp(), publishRelPacket.messageId()));
-        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREL, !retry, MqttQoS.AT_MOST_ONCE, false, 0x02);
+        MqttFixedHeader mqttFixedHeader = new MqttFixedHeader(MqttMessageType.PUBREL, false, MqttQoS.AT_MOST_ONCE, false, 0x02);
         MqttPubReplyMessageVariableHeader from = new MqttPubReplyMessageVariableHeader(publishRelPacket.messageId(),
-                publishRelPacket.reason(), publishRelPacket.getMqttProperties());
+                publishRelPacket.getReason(), publishRelPacket.getMqttProperties());
         connection.outbound()
                 .sendObject(Mono.just(new MqttPubAckMessage(mqttFixedHeader, from)))
                 .then()
                 .subscribe();
-        if (retry) {
+        if (publishRelPacket.isRetry()) {
+            publishRelPacket.setRetry(false);
+            publishRelPacket.setDup(true);
             this.doRetry(publishRelPacket);
         }
     }

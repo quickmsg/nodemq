@@ -1,5 +1,7 @@
 package io.github.quickmsg.edge.mqtt.msg;
 
+import io.github.quickmsg.edge.mqtt.Endpoint;
+import io.github.quickmsg.edge.mqtt.Packet;
 import io.github.quickmsg.edge.mqtt.packet.PublishPacket;
 import io.github.quickmsg.edge.mqtt.pair.PublishPair;
 
@@ -38,11 +40,11 @@ public class RetainMessage implements RetainExpire {
         return Objects.hash(topic);
     }
 
-    public RetainMessage(long createTime,long expireTime, String clientId, String clientIp, int messageId, String topic,
+    public RetainMessage(long createTime, long expireTime, String clientId, String clientIp, int messageId, String topic,
                          int qos, byte[] payload, boolean retain, boolean dup,
                          boolean retry, long timestamp, PublishPair pair) {
         this.createTime = createTime;
-        this.expireTime = expireTime;
+        this.expireTime = expireTime * 1000;
         this.clientId = clientId;
         this.clientIp = clientIp;
         this.messageId = messageId;
@@ -120,7 +122,7 @@ public class RetainMessage implements RetainExpire {
         return 0;
     }
 
-    public PublishPacket toPacket() {
-        return new PublishPacket(null, messageId, topic, qos, payload, retain, dup, retry, timestamp, pair);
+    public PublishPacket toPacket(Endpoint<Packet> endpoint) {
+        return new PublishPacket(endpoint, messageId, topic, qos, payload, retain, dup, retry, timestamp, pair);
     }
 }

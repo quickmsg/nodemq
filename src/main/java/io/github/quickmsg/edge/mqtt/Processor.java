@@ -20,5 +20,5 @@ public interface Processor {
     Mono<Void> processPublishComp(PublishCompPacket packet);
     Mono<Void> processAuth(AuthPacket packet);
     Mono<Void> processPing(PingPacket pingPacket);
-    Mono<Object> processClose(ClosePacket closePacket);
+    Mono<Void> processClose(ClosePacket closePacket);
 }

@@ -32,7 +32,7 @@ public class RetainStore{
     }
 
     public  void del(String topic){
-        topicTreeNode.addObjectTopic(topic,new RetainMessage(topic));
+        topicTreeNode.removeObjectTopic(topic,new RetainMessage(topic));
     }
 
     public Optional<RetainMessage> get(String topic){

@@ -256,10 +256,10 @@ public class MqttContext implements Context, Consumer<Packet> {
         }
         switch (retryTask.getM()) {
             case PublishPacket publishPacket -> {
-                endpoint.writeMessage(publishPacket,false);
+                endpoint.writeMessage(publishPacket);
             }
-            case PublishRecPacket publishRecPacket -> endpoint.writePublishRec(publishRecPacket,false);
-            case PublishRelPacket publishRelPacket -> endpoint.writePublishRel(publishRelPacket,false);
+            case PublishRecPacket publishRecPacket -> endpoint.writePublishRec(publishRecPacket);
+            case PublishRelPacket publishRelPacket -> endpoint.writePublishRel(publishRelPacket);
             case null, default -> {
             }
         }

@@ -9,6 +9,7 @@ import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttReasonCodes;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.*;
 
@@ -35,9 +36,11 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     endpoint.writeConnectAck(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, packet.getMqttProperties());
                 }
             } else {
+                endpoint.setWillMessage(packet.willMessage());
                 context().getLogger().printInfo(String.format("connect success  %s %s  ", packet.endpoint().getClientId(),
                         packet.endpoint().getClientIp()));
                 endpoint.setClientId(endpoint.getClientId());
+                endpoint.setClosed(false);
                 endpoint.setConnected(true);
                 endpoint.onClose(() -> this.clearEndpoint(endpoint).subscribe());
                 endpoint.readIdle(packet.keepalive() * 1000L, () -> {
@@ -66,75 +69,82 @@ public record MqttProcessor(MqttContext context) implements Processor {
         return Mono.fromRunnable(() -> {
             var endpoint = packet.endpoint();
             context().getLogger().printInfo(String.format("read pub  %s %s %s %d %s ", packet.endpoint().getClientId(),
-                    packet.endpoint().getClientIp(), "qos" + packet.qos(), packet.messageId(),
-                    HexFormat.of().formatHex(packet.payload())));
-            switch (packet.qos()) {
-                case 1 -> {
-                    if (context.getRetryManager().checkOverLimit()) {
-                        endpoint.writePublishAck(packet.messageId(),
-                                MqttReasonCodes.PubAck.QUOTA_EXCEEDED.byteValue(), packet.getMqttProperties());
-                        return;
-                    } else {
-                        endpoint.writePublishAck(packet.messageId(), (byte) 0, packet.getMqttProperties());
-                    }
-                }
-                case 2 -> {
-                    PublishRecPacket publishRecPacket;
-                    if (!context.getRetryManager().checkOverLimit()) {
-                        AckPair ackPair = null;
-                        if (endpoint.isMqtt5()) {
-                            ackPair = new AckPair(null, packet.pair().userProperty());
-                        }
-                        if (endpoint.cacheQos2Message(packet)) {
-                            publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
-                                    (byte) 0, System.currentTimeMillis(), ackPair);
+                    packet.endpoint().getClientIp(), "qos" + packet.getQos(), packet.messageId(),
+                    HexFormat.of().formatHex(packet.getPayload())));
+            this.doRetain(packet);
+            if(endpoint!=null && !endpoint.isClosed()){
+                switch (packet.getQos()) {
+                    case 1 -> {
+                        if (context.getRetryManager().checkOverLimit()) {
+                            endpoint.writePublishAck(packet.messageId(),
+                                    MqttReasonCodes.PubAck.QUOTA_EXCEEDED.byteValue(), packet.getMqttProperties());
+                            return;
                         } else {
-                            publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
-                                    MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue(), System.currentTimeMillis(), ackPair);
+                            endpoint.writePublishAck(packet.messageId(), (byte) 0, packet.getMqttProperties());
                         }
-                        endpoint.writePublishRec(publishRecPacket, true);
-                    } else {
-                        AckPair ackPair = null;
-                        if (endpoint.isMqtt5()) {
-                            ackPair = new AckPair(null, packet.pair().userProperty());
-                        }
-                        publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
-                                MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(), System.currentTimeMillis(), ackPair);
-                        endpoint.writePublishRec(publishRecPacket, false);
                     }
-                    return;
+                    case 2 -> {
+                        PublishRecPacket publishRecPacket;
+                        if (!context.getRetryManager().checkOverLimit()) {
+                            AckPair ackPair = null;
+                            if (endpoint.isMqtt5()) {
+                                ackPair = new AckPair(null, packet.getPair().userProperty());
+                            }
+                            if (endpoint.cacheQos2Message(packet)) {
+                                publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                        (byte) 0, System.currentTimeMillis(), false, true, ackPair);
+                            } else {
+                                publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                        MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue(),
+                                        System.currentTimeMillis(), false, true, ackPair);
+                            }
+                            endpoint.writePublishRec(publishRecPacket);
+                        } else {
+                            AckPair ackPair = null;
+                            if (endpoint.isMqtt5()) {
+                                ackPair = new AckPair(null, packet.getPair().userProperty());
+                            }
+                            publishRecPacket = new PublishRecPacket(packet.endpoint(), packet.messageId(),
+                                    MqttReasonCodes.PubRec.QUOTA_EXCEEDED.byteValue(), System.currentTimeMillis(), false, false, ackPair);
+                            endpoint.writePublishRec(publishRecPacket);
+                        }
+                        return;
+                    }
+                    default -> {
+                    }
                 }
-                default -> {
-                }
-            }
-            if (packet.payload().length == 0) {
-                context.getRetainStore().del(packet.topic());
-            }
-            if (packet.retain()) {
-                context.getRetainStore().add(packet.topic(),
-                        new RetainMessage(System.currentTimeMillis(), context.getMqttConfig().system().maxRetainExpiryInterval(),
-                                packet.endpoint().getClientId(),
-                                packet.endpoint().getClientId(),
-                                packet.messageId(),
-                                packet.topic(),
-                                packet.qos(),
-                                packet.payload(),
-                                true,
-                                false,
-                                packet.retry(),
-                                packet.timestamp(),
-                                packet.pair()
-                        ));
             }
             this.sendMessage(packet);
         });
 
     }
 
+    private void doRetain(PublishPacket packet) {
+        if (packet.getPayload().length == 0) {
+            context.getRetainStore().del(packet.getTopic());
+        }
+        if (packet.isRetain()) {
+            context.getRetainStore().add(packet.getTopic(),
+                    new RetainMessage(System.currentTimeMillis(), context.getMqttConfig().system().maxRetainExpiryInterval(),
+                            packet.endpoint().getClientId(),
+                            packet.endpoint().getClientId(),
+                            packet.messageId(),
+                            packet.getTopic(),
+                            packet.getQos(),
+                            packet.getPayload(),
+                            true,
+                            false,
+                            packet.isRetry(),
+                            packet.getTimestamp(),
+                            packet.getPair()
+                    ));
+        }
+    }
+
     private void sendMessage(PublishPacket packet) {
         var topicRegistry = context.getTopicRegistry();
         var channelRegistry = context.getChannelRegistry();
-        var subscribeTopics = topicRegistry.searchTopicSubscribe(packet.topic());
+        var subscribeTopics = topicRegistry.searchTopicSubscribe(packet.getTopic());
         if (subscribeTopics != null && !subscribeTopics.isEmpty()) {
             Map<String, List<SubscribeTopic>> shareSubscribeTopic = new HashMap<>();
             for (var subscribeTopic : subscribeTopics) {
@@ -142,8 +152,10 @@ public record MqttProcessor(MqttContext context) implements Processor {
                     var subscribeEndpoint = channelRegistry.getEndpoint(subscribeTopic.clientId());
                     subscribeEndpoint.writeMessage(
                             new PublishPacket(subscribeEndpoint,
-                                    subscribeEndpoint.generateMessageId(), packet.topic(), Math.min(packet.qos(), subscribeTopic.qos()), packet.payload(),
-                                    packet.retain(), false, packet.retry(), System.currentTimeMillis(), packet.pair()), packet.retry());
+                                    subscribeEndpoint.generateMessageId(), packet.getTopic(),
+                                    Math.min(packet.getQos(), subscribeTopic.qos()), packet.getPayload(),
+                                    packet.isRetain(), false, packet.isRetry(), System.currentTimeMillis(),
+                                    packet.getPair()));
                 } else {
                     var shareSubscribeGroup = shareSubscribeTopic.computeIfAbsent(subscribeTopic.topic(),
                             topic -> new LinkedList<>());
@@ -157,8 +169,10 @@ public record MqttProcessor(MqttContext context) implements Processor {
                                     context().getLoadBalancer().select(subscribeTopicList, packet.endpoint().getClientId());
                             var shareEndpoint = channelRegistry.getEndpoint(select.clientId());
                             shareEndpoint.writeMessage(new PublishPacket(shareEndpoint,
-                                    shareEndpoint.generateMessageId(), "$share/" + packet.topic(), Math.min(packet.qos(), select.qos()), packet.payload(),
-                                    packet.retain(), false, packet.retry(), System.currentTimeMillis(), packet.pair()), packet.retry());
+                                    shareEndpoint.generateMessageId(), "$share/" + packet.getTopic()
+                                    , Math.min(packet.getQos(), select.qos()), packet.getPayload(),
+                                    packet.isRetain(), false, packet.isRetry(), System.currentTimeMillis(),
+                                    packet.getPair()));
                         });
             }
 
@@ -196,12 +210,13 @@ public record MqttProcessor(MqttContext context) implements Processor {
                         var retainStore = context().getRetainStore();
                         retainStore.get(subscribeTopic.topic())
                                 .ifPresent(retainMessage -> {
-                                    if ((retainMessage.getExpireTime() + retainMessage.getCreateTime()) > System.currentTimeMillis()) {
+                                    if ((retainMessage.getExpireTime() + retainMessage.getCreateTime())
+                                            < System.currentTimeMillis()) {
                                         retainStore.del(retainMessage.getTopic());
                                     } else {
-                                        var ps = retainMessage.toPacket();
+                                        var ps = retainMessage.toPacket(packet.endpoint());
                                         packet.endpoint()
-                                                .writeMessage(ps, ps.retry());
+                                                .writeMessage(ps);
                                     }
                                 });
                         responseCodes.add(subscribeTopic.qos());
@@ -267,7 +282,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             if (cancelRetry != null) {
                 packet.endpoint().writePublishComp(new PublishCompPacket(packet.endpoint()
                         , packet.messageId(), (byte) 0,
-                        packet.timestamp(), packet.ackPair()));
+                        packet.getTimestamp(), packet.getAckPair()));
                 var publishPacket = packet.endpoint().removeQos2Message(packet.messageId());
                 if (publishPacket != null) {
                     this.sendMessage(publishPacket);
@@ -275,7 +290,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
             } else {
                 packet.endpoint().writePublishComp(new PublishCompPacket(packet.endpoint()
                         , packet.messageId(), MqttReasonCodes.PubRel.PACKET_IDENTIFIER_NOT_FOUND.byteValue(),
-                        packet.timestamp(), packet.ackPair()));
+                        packet.getTimestamp(), packet.getAckPair()));
             }
 
         });
@@ -292,8 +307,7 @@ public record MqttProcessor(MqttContext context) implements Processor {
                             packet.messageId()));
             byte reason = cancelRetry != null ? (byte) 0 : MqttReasonCodes.PubRec.PACKET_IDENTIFIER_IN_USE.byteValue();
             packet.endpoint().writePublishRel(new PublishRelPacket(packet.endpoint()
-                            , packet.messageId(), reason, packet.timestamp(), packet.ackPair()),
-                    true);
+                            , packet.messageId(), reason, packet.getTimestamp(), false, true, packet.getAckPair()));
 
         });
     }
@@ -323,15 +337,23 @@ public record MqttProcessor(MqttContext context) implements Processor {
     }
 
     @Override
-    public Mono<Object> processClose(ClosePacket closePacket) {
-        return Mono.fromRunnable(() -> {
+    public Mono<Void> processClose(ClosePacket closePacket) {
+        return Mono.defer(() -> {
             context().getLogger().printInfo(String.format("close  %s %s  ", closePacket.endpoint().getClientId(),
                     closePacket.endpoint().getClientIp()));
+            closePacket.endpoint().setClosed(true);
             context.getChannelRegistry().remove(closePacket.endpoint());
+            var msg  = closePacket.endpoint().getWillMessage();
+            if(msg!=null){
+                var pubPackage = new PublishPacket(closePacket.endpoint(),0,msg.willTopic(),msg.willQos(),
+                        msg.willMessage(), msg.isRetain(), false,msg.willQos()>0,System.currentTimeMillis(),null);
+                return this.processPublish(pubPackage);
+            }
             var subscribeTopics = closePacket.endpoint().getSubscribeTopics();
             for (SubscribeTopic subscribeTopic : subscribeTopics) {
                 context.getTopicRegistry().removeTopicSubscribe(subscribeTopic.topic(), subscribeTopic);
             }
+            return Mono.empty();
         });
     }
 

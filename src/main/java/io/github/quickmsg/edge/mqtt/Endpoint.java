@@ -1,6 +1,7 @@
 package io.github.quickmsg.edge.mqtt;
 
 import io.github.quickmsg.edge.mqtt.config.InitConfig;
+import io.github.quickmsg.edge.mqtt.msg.WillMessage;
 import io.github.quickmsg.edge.mqtt.packet.*;
 import io.github.quickmsg.edge.mqtt.proxy.ProxyMessage;
 import io.github.quickmsg.edge.mqtt.topic.SubscribeTopic;
@@ -15,20 +16,24 @@ import java.util.List;
  */
 public interface Endpoint<M> {
 
+    WillMessage getWillMessage();
+
+    void setWillMessage(WillMessage willMessage);
+
 
     ProxyMessage getProxyMessage();
 
     int generateMessageId();
 
-    void writeMessage(PublishPacket publishPacket,boolean retry);
+    void writeMessage(PublishPacket publishPacket);
 
-    void writePublishAck(int messageId,byte reason,MqttProperties mqttProperties);
+    void writePublishAck(int messageId, byte reason, MqttProperties mqttProperties);
 
-    void writeConnectAck(MqttConnectReturnCode connectReturnCode,MqttProperties properties);
+    void writeConnectAck(MqttConnectReturnCode connectReturnCode, MqttProperties properties);
 
-    void writePublishRec(PublishRecPacket publishRecPacket,boolean retry);
+    void writePublishRec(PublishRecPacket publishRecPacket);
 
-    void writePublishRel(PublishRelPacket publishRelPacket,boolean retry);
+    void writePublishRel(PublishRelPacket publishRelPacket);
 
     void writePublishComp(PublishCompPacket publishCompPacket);
 
@@ -36,7 +41,8 @@ public interface Endpoint<M> {
 
     void writeUnsubAck(int messageId, MqttProperties properties);
 
-    void writeDisconnect(byte reasonCode,MqttProperties properties);
+    void writeDisconnect(byte reasonCode, MqttProperties properties);
+
     void writePong();
 
     List<SubscribeTopic> getSubscribeTopics();
@@ -46,7 +52,7 @@ public interface Endpoint<M> {
 
     boolean isMqtt5();
 
-    boolean connected();
+    boolean isWriteable();
 
 
     MqttProperties connectProperties();
@@ -61,14 +67,20 @@ public interface Endpoint<M> {
 
     String getClientIp();
 
+    boolean connected();
+
+    void setConnected(boolean connected);
+
 
     boolean isClosed();
 
-    void readIdle(long keeps,Runnable runnable);
+    void setClosed(boolean closed);
 
-    void writeIdle(long keeps,Runnable runnable);
+    void readIdle(long keeps, Runnable runnable);
 
-    void readWriteIdle(long keeps,Runnable runnable);
+    void writeIdle(long keeps, Runnable runnable);
+
+    void readWriteIdle(long keeps, Runnable runnable);
 
     void onClose(Runnable runnable);
 
@@ -84,8 +96,6 @@ public interface Endpoint<M> {
     PublishPacket getQos2Message(int messageId);
 
     void setClientId(String clientId);
-
-    void setConnected(boolean b);
 
     void setCloseCode(int i);
 
