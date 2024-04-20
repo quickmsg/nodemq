@@ -34,8 +34,8 @@
 
 | system | download |
 |------------|---------------------------------------------------------|
-|  Windows  |  [binary file](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html) |
-| Linux-amd64 |  [binary file](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html)|
+|  Windows  |  [binary file](https://nodemq1.obs.cn-east-3.myhuaweicloud.com/NodeMQ.exe) |
+| Linux-amd64 |  [binary file](https://nodemq1.obs.cn-east-3.myhuaweicloud.com/NodeMQ)|
 
 Currently we offer the Windows platform as well as Linux-X86 runnable binaries
 

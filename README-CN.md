@@ -34,8 +34,8 @@
 
 | 系统          | 下载                                                      |
 |-------------|---------------------------------------------------------|
-| Windows     | [二进制文件](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html)  |
-| Linux-amd64 | [二进制文件](https://wiki.smqtt.cc/smqttx/mqtt/1.mqtt.html)  |
+| Windows     | [二进制文件](https://nodemq1.obs.cn-east-3.myhuaweicloud.com/NodeMQ.exe)  |
+| Linux-amd64 | [二进制文件](https://nodemq1.obs.cn-east-3.myhuaweicloud.com/NodeMQ)  |
 
 目前我们提供了Windows平台以及Linux-X86的可运行的二进制文件
 
