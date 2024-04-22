@@ -155,3 +155,6 @@ Finished generating 'NodeMQ' in 3m 7s.
 }
 ```
 
+## 技术交流
+微信技术交流请加 '18510240791' 请备注 'nodemq交流群'
+
