@@ -300,8 +300,8 @@ public record MqttProcessor(MqttContext context) implements Processor {
     @Override
     public Mono<Void> processPublishRec(PublishRecPacket packet) {
         return Mono.fromRunnable(() -> {
-            context().getLogger().printInfo(String.format("read pub rec  %s %s %d ", packet.endpoint().getClientId(),
-                    packet.endpoint().getClientIp(), packet.messageId()));
+
+
             var cancelRetry =
                     context().getRetryManager().cancelRetry(new RetryMessage(packet.endpoint().getClientId(), 0,
                             packet.messageId()));
